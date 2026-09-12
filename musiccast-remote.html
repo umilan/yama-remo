@@ -8,7 +8,7 @@
 <style>
   :root{
     color-scheme: dark;
-    --bg:#000000;
+    --bg:#330000;
     --fg:#ffffff;
     --fg-dim:#57575a;
     --fg-muted:#8a8a8e;
@@ -18,12 +18,12 @@
     --active-bg:rgba(255,46,196,0.14);
     --active-border:#ff2ec4;
     --danger:#ff4d4d;
+    --pad24:24px;
   }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body{
     margin:0;
-    padding-block:24px;
-    padding-inline:16px;
+    padding:var(--pad24);
     background:var(--bg);
     color:var(--fg);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -31,21 +31,13 @@
     justify-content:center;
     min-height:100vh;
   }
-  .phone{
-    width:100%;
-    max-width:420px;
+  .content{
+    width:100vw;
     display:flex;
     flex-direction:column;
-    min-height:calc(100vh - 48px);
+    height:100vh;
   }
-  @media (orientation:landscape) and (min-width:700px){
-    body{ padding-block:16px; }
-    .phone{ max-width:760px; min-height:calc(100vh - 32px); }
-    .topbar-full{ margin-bottom:16px; }
-    .now-row{ width:min(100%, 700px); margin-inline:auto; }
-    .gauge-wrap{ max-width:min(360px, calc(100vh - 200px)); }
-    .now-info{ width:min(100%, 700px); margin:16px auto; }
-  }
+  
   .topbar-full{
     display:none;
     grid-template-columns:repeat(10, minmax(0, 1fr));
@@ -58,7 +50,7 @@
     align-items:center;
     justify-content:space-between;
     width:100%;
-    margin-bottom:8px;
+    margin-bottom:var(--pad24);
   }
   .topbar-compact .icon-btn{
     width:auto;
@@ -80,7 +72,7 @@
     display:flex;
     justify-content:center;
     width:100%;
-    margin-bottom:32px;
+    margin-bottom:var(--pad24);
   }
   @media (orientation:landscape) and (min-width:700px){
     .topbar-compact{ display:none; }
@@ -163,7 +155,7 @@
   }
   .source-dropdown-item:hover{ background:rgba(255,255,255,0.08); }
   .source-dropdown-item.active{ background:var(--active-bg); color:var(--accent); }
-  .phone.powered-off .source-dropdown-item.active{ background:none; color:var(--fg-dim); }
+  .content.powered-off .source-dropdown-item.active{ background:none; color:var(--fg-dim); }
   .icon-btn{
     background:none;
     border:none;
@@ -211,7 +203,7 @@
   .now-row{
     display:flex;
     align-items:center;
-    gap:8px;
+    gap:var(--pad24);
     min-height:0;
   }
   .vol-step{
@@ -283,9 +275,9 @@
   .now-info{
     display:flex;
     align-items:center;
-    gap:16px;
-    margin-top:24px;
-    margin-bottom:16px;
+    gap:var(--pad24);
+    margin-top:var(--pad24);
+    margin-bottom:var(--pad24);
   }
   .now-info > .icon-btn{ width:auto; flex:none; }
   .now-text{ flex:1; min-width:0; cursor:pointer; text-align:center; }
@@ -311,16 +303,16 @@
     .gauge-wrap{ max-width:min(360px, calc(100vh - 260px)); }
   }
 
-  .phone.powered-off .icon-btn:not(.power):not(.settings):not([data-input]){ color:var(--fg-dim); pointer-events:none; }
-  .phone.powered-off .icon-btn.active .icon-circle{ background:none; border-color:transparent; }
-  .phone.powered-off .icon-btn.active .icon-label{ color:var(--fg-dim); }
-  .phone.powered-off .vol-step{ color:var(--fg-dim); pointer-events:none; }
-  .phone.powered-off .now-info .icon-btn{ color:var(--fg-dim); pointer-events:none; }
-  .phone.powered-off .now-title, .phone.powered-off .now-artist{ color:var(--fg-dim); }
-  .phone.powered-off #progressArc{ opacity:0; }
-  .phone.powered-off #trackArc{ stroke:#242426; }
-  .phone.powered-off .art-circle{ filter:grayscale(1) brightness(0.35); }
-  .phone.powered-off .off-overlay{ display:flex; }
+  .content.powered-off .icon-btn:not(.power):not(.settings):not([data-input]){ color:var(--fg-dim); pointer-events:none; }
+  .content.powered-off .icon-btn.active .icon-circle{ background:none; border-color:transparent; }
+  .content.powered-off .icon-btn.active .icon-label{ color:var(--fg-dim); }
+  .content.powered-off .vol-step{ color:var(--fg-dim); pointer-events:none; }
+  .content.powered-off .now-info .icon-btn{ color:var(--fg-dim); pointer-events:none; }
+  .content.powered-off .now-title, .content.powered-off .now-artist{ color:var(--fg-dim); }
+  .content.powered-off #progressArc{ opacity:0; }
+  .content.powered-off #trackArc{ stroke:#242426; }
+  .content.powered-off .art-circle{ filter:grayscale(1) brightness(0.35); }
+  .content.powered-off .off-overlay{ display:flex; }
 
   /* Settings drawer */
   .backdrop{
@@ -434,7 +426,7 @@
 </style>
 </head>
 <body>
-<div class="phone" id="phone">
+<div class="content" id="content">
 
   <div class="topbar-compact" id="topbarCompact">
     <button class="icon-btn power on" id="powerBtnCompact" aria-label="Power">
@@ -637,7 +629,7 @@
 (function(){
   "use strict";
 
-  var phone = document.getElementById("phone");
+  var content = document.getElementById("content");
   var ipInput = document.getElementById("ipInput");
   var refreshBtn = document.getElementById("refreshBtn");
   var statusDot = document.getElementById("statusDot");
@@ -882,7 +874,7 @@
   var disableWhenOff = [volDownBtn, volUpBtn, prevBtn, nextBtn];
   function setPowerVisual(on){
     isOn = on;
-    phone.classList.toggle("powered-off", !on);
+    content.classList.toggle("powered-off", !on);
     disableWhenOff.forEach(function(b){ b.disabled = !on; });
     powerLabel.textContent = on ? "Turn off" : "Turn on";
     powerLabelCompact.textContent = on ? "Turn off" : "Turn on";
