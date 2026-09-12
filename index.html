@@ -616,6 +616,17 @@
     </select>
   </div>
 
+  <div class="settings-row">
+    <label for="powerOnVolSelect">Power-on volume</label>
+    <select id="powerOnVolSelect">
+      <option value="5">5%</option>
+      <option value="10" selected>10%</option>
+      <option value="15">15%</option>
+      <option value="20">20%</option>
+      <option value="25">25%</option>
+    </select>
+  </div>
+
   <div class="settings-actions">
     <button id="testConnectionBtn" class="settings-action" type="button">Test connection</button>
     <button id="resetDefaultsBtn" class="settings-action" type="button">Reset to defaults</button>
@@ -638,6 +649,7 @@
   var speakersSelect = document.getElementById("speakersSelect");
   var volLimitSelect = document.getElementById("volLimitSelect");
   var volIncrementSelect = document.getElementById("volIncrementSelect");
+  var powerOnVolSelect = document.getElementById("powerOnVolSelect");
   var testConnectionBtn = document.getElementById("testConnectionBtn");
   var resetDefaultsBtn = document.getElementById("resetDefaultsBtn");
   var closeSettingsBtn = document.getElementById("closeSettingsBtn");
@@ -809,6 +821,7 @@
   var trueVolStep = 2;
   function volLimitPct(){ return parseInt(volLimitSelect.value, 10) || 100; }
   function volIncrementPct(){ return parseInt(volIncrementSelect.value, 10) || 1; }
+  function powerOnVolPct(){ return parseInt(powerOnVolSelect.value, 10) || 10; }
   function maxVol(){ return Math.max(1, Math.round(trueMaxVolume * (volLimitPct() / 100))); }
   function step(){ return percentStep(volIncrementPct()); }
 
@@ -1057,6 +1070,19 @@
     });
   }
 
+  function setVolumeAbsolute(targetPct){
+    var raw = Math.max(0, Math.min(maxVol(), Math.round(maxVol() * targetPct / 100)));
+    return mcRequest("main/setVolume?volume=" + raw).then(function(r){
+      describeResult(r, "Set volume to " + targetPct + "%");
+      if(r.ok){
+        currentVolume = raw;
+        updateGauge();
+        lastDisplayedPct = pct();
+      }
+      return r;
+    });
+  }
+
   function goPower(on){
     var wasOn = isOn;
     setPowerVisual(on);
@@ -1070,7 +1096,7 @@
       // controls sit "enabled" while the app also says "Not connected",
       // which is a contradiction the UI shouldn't show.
       if(!r.ok) setPowerVisual(wasOn);
-      else if(on) primeVolumeIndicator("up").then(refreshStatus);
+      else if(on) setVolumeAbsolute(powerOnVolPct()).then(refreshStatus);
     });
   }
   powerBtn.addEventListener("click", function(){ goPower(!isOn); });
@@ -1187,7 +1213,7 @@
       return mcRequest("main/setPower?power=on").then(function(powerResult){
         describeResult(powerResult, "Power on");
         if(!powerResult.ok) return null;
-        return primeVolumeIndicator("up").then(function(){
+        return setVolumeAbsolute(powerOnVolPct()).then(function(){
           return mcRequest("main/setInput?input=" + encodeURIComponent(id)).then(function(inputResult){
             describeResult(inputResult, "Source → " + id);
             if(inputResult.ok) highlightActiveInput(id);
@@ -1237,6 +1263,7 @@
   resetDefaultsBtn.addEventListener("click", function(){
     volLimitSelect.value = "100";
     volIncrementSelect.value = "1";
+    powerOnVolSelect.value = "10";
     updateGauge();
     lastDisplayedPct = pct();
     log("Settings reset to defaults.", "ok");
