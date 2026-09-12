@@ -384,69 +384,97 @@
     margin:0 auto 4px;
   }
   .drawer-head{
-    display:flex; align-items:center; justify-content:space-between;
+    display:grid;
+    grid-template-columns:40px 1fr 40px;
+    align-items:center;
   }
-  .drawer-head strong{ font-size:16px; }
+  .drawer-head strong{ grid-column:2; text-align:center; font-size:22px; font-weight:800; }
   .drawer-close{
-    background:none; border:none; color:var(--fg-muted);
-    font-size:15px; font-weight:600; cursor:pointer; padding:8px;
-  }
-  .drawer-close:hover{ color:var(--fg); }
-  .field-group{ display:flex; flex-direction:column; gap:8px; }
-  label{ font-size:13px; color:var(--fg-muted); font-weight:600; }
-  input[type="text"], input[type="number"]{
-    width:100%;
-    padding:12px 14px;
-    border-radius:10px;
-    border:1px solid #2c2c2e;
-    background:#1c1c1e;
+    grid-column:3; justify-self:end;
+    width:40px; height:40px;
+    border-radius:50%;
+    background:rgba(255,255,255,0.08);
+    border:none;
     color:var(--fg);
-    font-size:15px;
-    font-family:inherit;
-  }
-  input:focus{ outline:2px solid var(--accent); outline-offset:1px; }
-  .row{ display:flex; gap:8px; align-items:center; }
-  .row.wrap{ flex-wrap:wrap; }
-  .grow{ flex:1; min-width:0; }
-  button.pill{
-    font-family:inherit;
-    font-size:14px;
-    font-weight:600;
-    border-radius:10px;
-    border:1px solid #2c2c2e;
-    background:#1c1c1e;
-    color:var(--fg);
-    padding:12px 16px;
+    display:flex; align-items:center; justify-content:center;
     cursor:pointer;
   }
-  button.pill:hover{ background:#242426; cursor:pointer; }
-  button.pill:active{ transform:translateY(1px); }
-  button.pill.primary{ background:var(--accent); border-color:var(--accent); color:#000; font-weight:700; }
-  button.pill.danger{ color:var(--danger); border-color:var(--danger); background:none; }
-  button.pill.danger:hover{ background:rgba(255,77,77,0.1); }
-  .status-line{
-    display:flex; align-items:center; gap:8px;
-    font-size:13px; color:var(--fg-muted); line-height:1.5;
+  .drawer-close svg{ width:20px; height:20px; }
+  .drawer-close:hover{ background:rgba(255,255,255,0.15); }
+  .settings-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
   }
-  .dot{ width:8px; height:8px; border-radius:50%; background:var(--fg-dim); flex:none; }
-  .dot.ok{ background:#34c759; }
-  .dot.warn{ background:#e6a41c; }
-  .dot.bad{ background:var(--danger); }
-  .chips{ display:flex; flex-wrap:wrap; gap:8px; }
-  .chip{
-    border-radius:999px; padding:8px 16px; font-size:13px; font-weight:600;
-    background:#1c1c1e; border:1px solid #2c2c2e; color:var(--fg); cursor:pointer;
+  .settings-row label{ font-size:17px; color:var(--fg-muted); font-weight:500; }
+  .settings-row-control{ display:flex; align-items:center; gap:8px; }
+  input[type="text"]{
+    padding:14px 16px;
+    border-radius:12px;
+    border:1px solid #2c2c2e;
+    background:#1c1c1e;
+    color:var(--fg);
+    font-size:17px;
+    font-weight:600;
+    font-family:inherit;
+    width:200px;
+    max-width:50vw;
   }
-  .chip:hover{ border-color:#3a3a3c; }
-  .chip.active{ background:var(--active-bg); border-color:var(--accent); color:var(--accent); }
-  .note{ font-size:12px; color:var(--fg-muted); line-height:1.5; margin:0; }
-  details{ border-top:1px solid #2c2c2e; padding-top:16px; }
-  summary{ cursor:pointer; font-size:13px; font-weight:600; color:var(--fg-muted); list-style:none; }
-  summary::-webkit-details-marker{ display:none; }
-  summary::before{ content:"▸ "; }
-  details[open] summary::before{ content:"▾ "; }
+  input:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  select{
+    -webkit-appearance:none; appearance:none;
+    padding:14px 36px 14px 16px;
+    border-radius:12px;
+    border:1px solid #2c2c2e;
+    background-color:#1c1c1e;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:right 12px center;
+    background-size:16px;
+    color:var(--fg);
+    font-size:17px;
+    font-weight:600;
+    font-family:inherit;
+    cursor:pointer;
+  }
+  select:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .ip-confirm{
+    width:52px; height:52px;
+    flex:none;
+    border-radius:12px;
+    background:#1c1c1e;
+    border:none;
+    color:var(--fg-dim);
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+  }
+  .ip-confirm svg{ width:22px; height:22px; }
+  .ip-confirm:hover{ opacity:0.85; }
+  .ip-confirm.connected{ background:#0f3d24; color:#34c759; }
+  .settings-actions{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:28px;
+    margin-top:8px;
+  }
+  .settings-action{
+    background:none;
+    border:none;
+    color:var(--fg);
+    font-family:inherit;
+    font-size:16px;
+    font-weight:800;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    cursor:pointer;
+    padding:4px 8px;
+  }
+  .settings-action:hover{ opacity:0.8; }
+  .settings-action.muted{ color:var(--fg-muted); font-size:14px; }
   .log{
-    margin-top:12px; display:flex; flex-direction:column; gap:6px;
+    margin-top:4px; display:flex; flex-direction:column; gap:6px;
     font-size:12px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
     max-height:140px; overflow-y:auto; color:var(--fg-muted);
   }
@@ -546,78 +574,58 @@
   <div class="drawer-handle"></div>
   <div class="drawer-head">
     <strong>Settings</strong>
-    <button class="drawer-close" id="drawerClose">Done</button>
+    <button class="drawer-close" id="drawerClose" aria-label="Close settings" title="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
   </div>
 
-  <div class="field-group">
-    <label for="ipInput">Speaker IP address</label>
-    <div class="row">
-      <input id="ipInput" class="grow" type="text" inputmode="decimal" placeholder="e.g. 192.168.1.42" value="192.168.1.13" autocomplete="off" spellcheck="false">
-      <button id="refreshBtn" class="pill primary">Connect</button>
-    </div>
-    <div class="status-line">
-      <span id="statusDot" class="dot"></span>
-      <span id="statusText">Enter your speaker's IP address and press Connect.</span>
-    </div>
-  </div>
-
-  <div class="field-group">
-    <h2>Power</h2>
-    <div class="row">
-      <button id="powerOnBtn" class="pill primary grow">Power on</button>
-      <button id="powerOffBtn" class="pill danger grow">Standby</button>
+  <div class="settings-row">
+    <label for="ipInput">IP address</label>
+    <div class="settings-row-control">
+      <input id="ipInput" type="text" inputmode="decimal" placeholder="192.168.1.42" value="192.168.1.13" autocomplete="off" spellcheck="false">
+      <button id="ipConfirmBtn" class="ip-confirm" type="button" aria-label="Confirm and test connection" title="Confirm">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      </button>
     </div>
   </div>
 
-  <div class="field-group">
-    <h2>Volume</h2>
-    <div class="row">
-      <button id="muteBtn" class="pill">Mute</button>
-      <div class="field-group grow">
-        <label for="maxVolInput">Max volume on this speaker</label>
-        <input id="maxVolInput" type="number" min="1" max="200" value="60">
-      </div>
-      <div class="field-group grow">
-        <label for="stepInput">Step size for +/−</label>
-        <input id="stepInput" type="number" min="1" max="20" value="2">
-      </div>
-    </div>
-    <button id="discoverVolBtn" class="pill" style="align-self:flex-start;">Discover volume range from speaker…</button>
-    <p class="note">The dial shows volume level as a ring position based on "max volume", since MusicCast doesn't expose the real range without a status read. Adjust it to match your speaker if it looks off — the +/− buttons work regardless, or use Discover to read the real max/step from <code>system/getFeatures</code>.</p>
+  <div class="settings-row">
+    <label for="speakersSelect">Speakers</label>
+    <select id="speakersSelect">
+      <option value="nx-n500">NX500</option>
+    </select>
   </div>
 
-  <div class="field-group">
-    <h2>All sources</h2>
-    <div class="chips" id="allSourceChips">
-      <button class="chip" data-input="airplay">AirPlay</button>
-      <button class="chip" data-input="aux">AUX</button>
-      <button class="chip" data-input="bluetooth">Bluetooth</button>
-      <button class="chip" data-input="usb">USB</button>
-      <button class="chip" data-input="server">Server (DLNA)</button>
-      <button class="chip" data-input="net_radio">Net Radio</button>
-      <button class="chip" data-input="tuner">Tuner</button>
-      <button class="chip" data-input="line_in">Line In</button>
-    </div>
-    <details>
-      <summary>Custom / discovered inputs</summary>
-      <div style="margin-top:12px; display:flex; flex-direction:column; gap:12px;">
-        <div class="row">
-          <input id="customInput" class="grow" type="text" placeholder="e.g. spotify, hdmi1, audio1" autocomplete="off" spellcheck="false">
-          <button id="customInputBtn" class="pill">Set</button>
-        </div>
-        <button id="discoverBtn" class="pill" style="align-self:flex-start;">Discover actual inputs from speaker…</button>
-        <div id="discoveredChips" class="chips"></div>
-        <p class="note">"AUX" is a best guess — Yamaha's input IDs vary by model (aux, aux1, line_in, audio1…). Use Discover if your browser can read the response, or try a custom ID.</p>
-      </div>
-    </details>
+  <div class="settings-row">
+    <label for="volLimitSelect">Volume limit</label>
+    <select id="volLimitSelect">
+      <option value="25">25/100%</option>
+      <option value="50">50/100%</option>
+      <option value="75">75/100%</option>
+      <option value="100" selected>100/100%</option>
+    </select>
   </div>
 
-  <details>
-    <summary>Activity log</summary>
+  <div class="settings-row">
+    <label for="volIncrementSelect">Volume increments</label>
+    <select id="volIncrementSelect">
+      <option value="1" selected>1%</option>
+      <option value="2">2%</option>
+      <option value="5">5%</option>
+      <option value="10">10%</option>
+    </select>
+  </div>
+
+  <div class="settings-actions">
+    <button id="testConnectionBtn" class="settings-action" type="button">Test connection</button>
+    <button id="resetDefaultsBtn" class="settings-action" type="button">Reset to defaults</button>
+    <button id="closeSettingsBtn" class="settings-action" type="button">Close</button>
+    <button id="showLogBtn" class="settings-action muted" type="button">Show log…</button>
+  </div>
+
+  <div id="logWrap" hidden>
     <div id="log" class="log"><div class="log-entry">Ready.</div></div>
-  </details>
-
-  <p class="note">Talks directly to your speaker's built-in MusicCast API over plain HTTP on your local network. Browsers can block reading the response from another device (CORS) — commands still work, they're just "fire and forget" with no readback, and now-playing info / album art will only appear if your browser allows that read. Nothing here ever leaves your network.</p>
+  </div>
 </div>
 
 <script>
@@ -626,25 +634,21 @@
 
   var content = document.getElementById("content");
   var ipInput = document.getElementById("ipInput");
-  var refreshBtn = document.getElementById("refreshBtn");
-  var statusDot = document.getElementById("statusDot");
-  var statusText = document.getElementById("statusText");
+  var ipConfirmBtn = document.getElementById("ipConfirmBtn");
+  var speakersSelect = document.getElementById("speakersSelect");
+  var volLimitSelect = document.getElementById("volLimitSelect");
+  var volIncrementSelect = document.getElementById("volIncrementSelect");
+  var testConnectionBtn = document.getElementById("testConnectionBtn");
+  var resetDefaultsBtn = document.getElementById("resetDefaultsBtn");
+  var closeSettingsBtn = document.getElementById("closeSettingsBtn");
+  var showLogBtn = document.getElementById("showLogBtn");
+  var logWrap = document.getElementById("logWrap");
   var powerBtn = document.getElementById("powerBtn");
   var powerLabel = document.getElementById("powerLabel");
-  var powerOnBtn = document.getElementById("powerOnBtn");
-  var powerOffBtn = document.getElementById("powerOffBtn");
   var volDownBtn = document.getElementById("volDownBtn");
   var volUpBtn = document.getElementById("volUpBtn");
   var prevBtn = document.getElementById("prevBtn");
   var nextBtn = document.getElementById("nextBtn");
-  var muteBtn = document.getElementById("muteBtn");
-  var maxVolInput = document.getElementById("maxVolInput");
-  var stepInput = document.getElementById("stepInput");
-  var customInput = document.getElementById("customInput");
-  var customInputBtn = document.getElementById("customInputBtn");
-  var discoverBtn = document.getElementById("discoverBtn");
-  var discoverVolBtn = document.getElementById("discoverVolBtn");
-  var discoveredChips = document.getElementById("discoveredChips");
   var logEl = document.getElementById("log");
   var trackArc = document.getElementById("trackArc");
   var progressArc = document.getElementById("progressArc");
@@ -659,7 +663,6 @@
   var drawerClose = document.getElementById("drawerClose");
   var drawer = document.getElementById("drawer");
   var backdrop = document.getElementById("backdrop");
-  var allSourceChips = document.querySelectorAll("#allSourceChips .chip[data-input]");
   var sourceNameBtn = document.getElementById("sourceNameBtn");
   var sourceNameText = document.getElementById("sourceNameText");
   var sourceDropdown = document.getElementById("sourceDropdown");
@@ -670,7 +673,6 @@
 
   var isOn = true;
   var currentVolume = null;
-  var lastKnownMute = null;
   var activeInput = null;
   var isConnected = false;
   function syncConnectIpValue(){
@@ -679,6 +681,7 @@
   function setConnected(ok){
     isConnected = ok;
     content.classList.toggle("disconnected", !ok);
+    ipConfirmBtn.classList.toggle("connected", ok);
   }
 
   var LUCIDE_SOURCE_ICONS = {
@@ -796,8 +799,18 @@
   }
   trackArc.setAttribute("d", describeArc(CX, CY, R, START_ANGLE, START_ANGLE + TOTAL_SWEEP));
 
-  function maxVol(){ return parseInt(maxVolInput.value, 10) || 60; }
-  function step(){ return parseInt(stepInput.value, 10) || 2; }
+  // trueMaxVolume/trueVolStep are the speaker's actual reported range
+  // (discoverTrueVolumeRange, in the background); default to a sane guess
+  // until a connection confirms them. "Volume limit" caps the *usable*
+  // range as a percentage of that true max — it's what maxVol() exposes
+  // to the rest of the app, so the dial's 100% mark is the user's cap,
+  // not the device's real ceiling.
+  var trueMaxVolume = 60;
+  var trueVolStep = 2;
+  function volLimitPct(){ return parseInt(volLimitSelect.value, 10) || 100; }
+  function volIncrementPct(){ return parseInt(volIncrementSelect.value, 10) || 1; }
+  function maxVol(){ return Math.max(1, Math.round(trueMaxVolume * (volLimitPct() / 100))); }
+  function step(){ return percentStep(volIncrementPct()); }
 
   function pct(){
     if(currentVolume == null) return 0;
@@ -873,10 +886,6 @@
     logEl.appendChild(entry);
     logEl.scrollTop = logEl.scrollHeight;
   }
-  function setStatus(text, level){
-    statusText.textContent = text;
-    statusDot.className = "dot" + (level ? " " + level : "");
-  }
   function currentIp(){ return ipInput.value.trim(); }
 
   // Any request that actually reaches the speaker — even a fire-and-forget
@@ -892,7 +901,7 @@
       if(trackTitle.textContent === "Not connected") setNowPlaying(null, null);
     } else {
       setNowPlaying(null, null);
-      setStatus("Lost contact with the speaker at this address.", "bad");
+      log("Lost contact with the speaker at this address.", "bad");
     }
   }
 
@@ -934,13 +943,6 @@
     if(typeof data.volume === "number"){
       currentVolume = data.volume;
     }
-    if(typeof data.max_volume === "number"){
-      maxVolInput.value = data.max_volume;
-    }
-    if(typeof data.mute === "boolean"){
-      lastKnownMute = data.mute;
-      muteBtn.textContent = data.mute ? "Unmute" : "Mute";
-    }
     if(typeof data.input === "string"){
       highlightActiveInput(data.input);
     }
@@ -972,11 +974,7 @@
 
   function highlightActiveInput(id){
     activeInput = id;
-    allSourceChips.forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-input") === id); });
     renderCompactSource(id);
-    Array.prototype.forEach.call(discoveredChips.children, function(b){
-      b.classList.toggle("active", b.getAttribute("data-input") === id);
-    });
     setPlaceholderIcon(id);
   }
 
@@ -1000,29 +998,26 @@
     if(!currentIp()){
       setConnected(false);
       setNowPlaying(null, null);
-      setStatus("Enter your speaker's IP address and press Connect.", "");
+      log("Enter your speaker's IP address and confirm.", "");
       return;
     }
-    setStatus("Connecting…", "");
     trackTitle.textContent = "Connecting…";
     trackArtist.style.display = "none";
     mcRequest("main/getStatus").then(function(r){
       if(r.ok && !r.blind && r.data){
         setConnected(true);
         renderStatusData(r.data);
-        setStatus("Connected.", "ok");
-        log("Status refreshed.", "ok");
+        log("Connected — status refreshed.", "ok");
         fetchPlayInfo();
+        discoverTrueVolumeRange();
       } else if(r.ok && r.blind){
         setConnected(true);
         setNowPlaying(null, null); // reachable, so show "Not playing" instead of "Connecting…"/"Not connected"
-        setStatus("Speaker reachable, but the browser can't read its response (CORS). Buttons still work.", "warn");
-        log("getStatus sent, response blocked by CORS.", "warn");
+        log("Speaker reachable, but the browser can't read its response (CORS). Buttons still work.", "warn");
       } else {
         setConnected(false);
         setNowPlaying(null, null);
-        setStatus("Couldn't reach a speaker at this address. Check the IP and network.", "bad");
-        log("getStatus failed — unreachable.", "bad");
+        log("Couldn't reach a speaker at this address. Check the IP and network.", "bad");
       }
     }).then(function(){ connectingNow = false; }, function(){ connectingNow = false; });
   }
@@ -1046,7 +1041,7 @@
   });
 
   // ---------- Wiring ----------
-  refreshBtn.addEventListener("click", refreshStatus);
+  ipConfirmBtn.addEventListener("click", refreshStatus);
   ipInput.addEventListener("keydown", function(e){ if(e.key === "Enter") refreshStatus(); });
   ipInput.addEventListener("input", function(){ setConnected(false); syncConnectIpValue(); }); // editing the address invalidates any prior connection
 
@@ -1079,8 +1074,6 @@
     });
   }
   powerBtn.addEventListener("click", function(){ goPower(!isOn); });
-  powerOnBtn.addEventListener("click", function(){ goPower(true); });
-  powerOffBtn.addEventListener("click", function(){ goPower(false); });
 
   var SCROLL_VOL_UP_INCREMENT_PCT = 1;
   var SCROLL_VOL_DOWN_INCREMENT_PCT = 2;
@@ -1094,6 +1087,10 @@
   }
 
   function nudgeVolume(dir, explicitStep, animateStepDelayMs){
+    if(dir === "up" && currentVolume != null && currentVolume >= maxVol()){
+      log("At volume limit (" + volLimitPct() + "%).", "warn");
+      return;
+    }
     var s = explicitStep != null ? explicitStep : step();
     mcRequest("main/setVolume?volume=" + dir + "&step=" + s).then(function(r){
       describeResult(r, "Volume " + dir);
@@ -1175,14 +1172,6 @@
     mcRequest("netusb/setPlayback?playback=next").then(function(r){ describeResult(r, "Next track"); });
   });
 
-  muteBtn.addEventListener("click", function(){
-    var next = !(lastKnownMute === true);
-    mcRequest("main/setMute?enable=" + next).then(function(r){
-      describeResult(r, next ? "Mute" : "Unmute");
-      if(r.ok){ lastKnownMute = next; muteBtn.textContent = next ? "Unmute" : "Mute"; }
-    });
-  });
-
   function activateInput(id){
     if(!currentIp()){
       describeResult({ok:false, reason:"no-ip"}, "Source → " + id);
@@ -1211,61 +1200,29 @@
   function selectInput(id){
     activateInput(id);
   }
-  allSourceChips.forEach(function(b){ b.addEventListener("click", function(){ selectInput(b.getAttribute("data-input")); }); });
 
-  customInputBtn.addEventListener("click", function(){
-    var id = customInput.value.trim();
-    if(id) selectInput(id);
-  });
-  customInput.addEventListener("keydown", function(e){ if(e.key === "Enter") customInputBtn.click(); });
-
-  discoverBtn.addEventListener("click", function(){
-    log("Requesting input list from speaker…");
-    mcRequest("system/getFeatures").then(function(r){
-      if(r.ok && !r.blind && r.data){
-        var zones = r.data.zone || [];
-        var main = zones.filter(function(z){ return z.id === "main"; })[0];
-        var ids = main && main.input_list ? main.input_list : [];
-        if(!ids.length){ log("No input list found in getFeatures.", "warn"); return; }
-        discoveredChips.innerHTML = "";
-        ids.forEach(function(id){
-          var btn = document.createElement("button");
-          btn.className = "chip";
-          btn.setAttribute("data-input", id);
-          btn.textContent = id;
-          btn.addEventListener("click", function(){ selectInput(id); });
-          discoveredChips.appendChild(btn);
-        });
-        log("Discovered " + ids.length + " input(s).", "ok");
-      } else if(r.ok && r.blind){
-        log("Speaker reachable but the browser blocked reading getFeatures (CORS). Try a custom input ID instead.", "warn");
-      } else {
-        log("Couldn't reach the speaker to discover inputs.", "bad");
-      }
-    });
-  });
-
-  discoverVolBtn.addEventListener("click", function(){
-    log("Requesting volume range from speaker…");
+  // Reads the speaker's real volume ceiling in the background (no button —
+  // this used to be a visible "Discover" action) so maxVol() reflects the
+  // actual device range rather than a guessed default.
+  var discoveredTrueVolume = false;
+  function discoverTrueVolumeRange(){
+    if(discoveredTrueVolume) return;
     mcRequest("system/getFeatures").then(function(r){
       if(r.ok && !r.blind && r.data){
         var zones = r.data.zone || [];
         var main = zones.filter(function(z){ return z.id === "main"; })[0];
         var steps = main && main.range_step ? main.range_step : [];
         var volRange = steps.filter(function(s){ return s.id === "volume"; })[0];
-        if(!volRange){ log("No volume range found in getFeatures.", "warn"); return; }
-        maxVolInput.value = volRange.max;
-        stepInput.value = volRange.step;
+        if(!volRange) return;
+        trueMaxVolume = volRange.max;
+        trueVolStep = volRange.step;
+        discoveredTrueVolume = true;
         updateGauge();
         lastDisplayedPct = pct();
-        log("Discovered volume range: max " + volRange.max + ", step " + volRange.step + ".", "ok");
-      } else if(r.ok && r.blind){
-        log("Speaker reachable but the browser blocked reading getFeatures (CORS). Enter the max volume manually instead.", "warn");
-      } else {
-        log("Couldn't reach the speaker to discover the volume range.", "bad");
+        log("Discovered real volume range: max " + volRange.max + ", step " + volRange.step + ".", "ok");
       }
     });
-  });
+  }
 
   // ---------- Settings drawer ----------
   function openDrawer(){ drawer.classList.add("open"); backdrop.classList.add("open"); }
@@ -1273,8 +1230,21 @@
   settingsBtn.addEventListener("click", openDrawer);
   settingsBtnConnect.addEventListener("click", openDrawer);
   drawerClose.addEventListener("click", closeDrawer);
+  closeSettingsBtn.addEventListener("click", closeDrawer);
   backdrop.addEventListener("click", closeDrawer);
-  maxVolInput.addEventListener("change", function(){ updateGauge(); lastDisplayedPct = pct(); });
+  volLimitSelect.addEventListener("change", function(){ updateGauge(); lastDisplayedPct = pct(); });
+  testConnectionBtn.addEventListener("click", refreshStatus);
+  resetDefaultsBtn.addEventListener("click", function(){
+    volLimitSelect.value = "100";
+    volIncrementSelect.value = "1";
+    updateGauge();
+    lastDisplayedPct = pct();
+    log("Settings reset to defaults.", "ok");
+  });
+  showLogBtn.addEventListener("click", function(){
+    logWrap.hidden = !logWrap.hidden;
+    showLogBtn.textContent = logWrap.hidden ? "Show log…" : "Hide log";
+  });
 
   // ---------- Disconnected takeover screen ----------
   connectCircle.addEventListener("click", function(){
