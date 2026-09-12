@@ -599,31 +599,31 @@
   <div class="settings-row">
     <label for="volLimitSelect">Volume limit</label>
     <select id="volLimitSelect">
-      <option value="25">25/100%</option>
-      <option value="50">50/100%</option>
-      <option value="75">75/100%</option>
-      <option value="100" selected>100/100%</option>
+      <option value="25">25/100 steps</option>
+      <option value="50">50/100 steps</option>
+      <option value="75">75/100 steps</option>
+      <option value="100" selected>100/100 steps</option>
     </select>
   </div>
 
   <div class="settings-row">
     <label for="volIncrementSelect">Volume increments</label>
     <select id="volIncrementSelect">
-      <option value="1" selected>1%</option>
-      <option value="2">2%</option>
-      <option value="5">5%</option>
-      <option value="10">10%</option>
+      <option value="1" selected>1 step</option>
+      <option value="2">2 steps</option>
+      <option value="5">5 steps</option>
+      <option value="10">10 steps</option>
     </select>
   </div>
 
   <div class="settings-row">
     <label for="powerOnVolSelect">Power-on volume</label>
     <select id="powerOnVolSelect">
-      <option value="5">5%</option>
-      <option value="10" selected>10%</option>
-      <option value="15">15%</option>
-      <option value="20">20%</option>
-      <option value="25">25%</option>
+      <option value="5">5 steps</option>
+      <option value="10" selected>10 steps</option>
+      <option value="15">15 steps</option>
+      <option value="20">20 steps</option>
+      <option value="25">25 steps</option>
     </select>
   </div>
 
@@ -811,19 +811,17 @@
   }
   trackArc.setAttribute("d", describeArc(CX, CY, R, START_ANGLE, START_ANGLE + TOTAL_SWEEP));
 
-  // trueMaxVolume/trueVolStep are the speaker's actual reported range
-  // (discoverTrueVolumeRange, in the background); default to a sane guess
-  // until a connection confirms them. "Volume limit" caps the *usable*
-  // range as a percentage of that true max — it's what maxVol() exposes
-  // to the rest of the app, so the dial's 100% mark is the user's cap,
-  // not the device's real ceiling.
-  var trueMaxVolume = 60;
-  var trueVolStep = 2;
-  function volLimitPct(){ return parseInt(volLimitSelect.value, 10) || 100; }
-  function volIncrementPct(){ return parseInt(volIncrementSelect.value, 10) || 1; }
-  function powerOnVolPct(){ return parseInt(powerOnVolSelect.value, 10) || 10; }
-  function maxVol(){ return Math.max(1, Math.round(trueMaxVolume * (volLimitPct() / 100))); }
-  function step(){ return percentStep(volIncrementPct()); }
+  // The NX500 has a fixed 0-100 raw volume-step range on the MusicCast
+  // API (this used to be auto-discovered via getFeatures in the
+  // background, but the device always reports the same range, so it's
+  // just a constant now — matches the "Speakers: NX500" setting). All
+  // volume control works directly in these steps, not percentages.
+  var NX500_VOLUME_STEPS = 100;
+  function volLimitSteps(){ return parseInt(volLimitSelect.value, 10) || NX500_VOLUME_STEPS; }
+  function volIncrementSteps(){ return parseInt(volIncrementSelect.value, 10) || 1; }
+  function powerOnVolSteps(){ return parseInt(powerOnVolSelect.value, 10) || 10; }
+  function maxVol(){ return NX500_VOLUME_STEPS; }
+  function step(){ return volIncrementSteps(); }
 
   function pct(){
     if(currentVolume == null) return 0;
@@ -835,7 +833,7 @@
     progressArc.setAttribute("d", describeArc(CX, CY, R, START_ANGLE, START_ANGLE + sweep));
   }
   function setVolumeOverlayText(p){
-    volOverlayPct.textContent = Math.round(p) + "%";
+    volOverlayPct.textContent = Math.round(p);
   }
   function updateGauge(){
     drawGaugeForPercent(pct());
@@ -1034,7 +1032,6 @@
         renderStatusData(r.data);
         log("Connected — status refreshed.", "ok");
         fetchPlayInfo();
-        discoverTrueVolumeRange();
       } else if(r.ok && r.blind){
         setConnected(true);
         setNowPlaying(null, null); // reachable, so show "Not playing" instead of "Connecting…"/"Not connected"
@@ -1091,10 +1088,10 @@
   // up — give it a beat before setting the power-on volume.
   var POWER_ON_SETTLE_MS = 1000;
 
-  function setVolumeAbsolute(targetPct){
-    var raw = Math.max(0, Math.min(maxVol(), Math.round(maxVol() * targetPct / 100)));
+  function setVolumeAbsolute(targetSteps){
+    var raw = Math.max(0, Math.min(volLimitSteps(), targetSteps));
     return mcRequest("main/setVolume?volume=" + raw).then(function(r){
-      describeResult(r, "Set volume to " + targetPct + "%");
+      describeResult(r, "Set volume to " + raw + "/" + NX500_VOLUME_STEPS);
       if(r.ok){
         currentVolume = raw;
         updateGauge();
@@ -1117,33 +1114,29 @@
       // controls sit "enabled" while the app also says "Not connected",
       // which is a contradiction the UI shouldn't show.
       if(!r.ok) setPowerVisual(wasOn);
-      else if(on) delay(POWER_ON_SETTLE_MS).then(function(){ return setVolumeAbsolute(powerOnVolPct()); }).then(refreshStatus);
+      else if(on) delay(POWER_ON_SETTLE_MS).then(function(){ return setVolumeAbsolute(powerOnVolSteps()); }).then(refreshStatus);
     });
   }
   powerBtn.addEventListener("click", function(){ goPower(!isOn); });
 
-  var SCROLL_VOL_UP_INCREMENT_PCT = 1;
-  var SCROLL_VOL_DOWN_INCREMENT_PCT = 2;
+  var SCROLL_VOL_UP_INCREMENT_STEPS = 1;
+  var SCROLL_VOL_DOWN_INCREMENT_STEPS = 2;
   var SCROLL_VOL_UP_THROTTLE_MS = 500;
   var SCROLL_VOL_DOWN_THROTTLE_MS = 200;
   var lastVolUpScrollTime = 0;
   var lastVolDownScrollTime = 0;
 
-  function percentStep(amountPct){
-    return Math.max(1, Math.round(maxVol() * amountPct / 100));
-  }
-
   function nudgeVolume(dir, explicitStep, animateStepDelayMs){
-    if(dir === "up" && currentVolume != null && currentVolume >= maxVol()){
-      log("At volume limit (" + volLimitPct() + "%).", "warn");
+    if(dir === "up" && currentVolume != null && currentVolume >= volLimitSteps()){
+      log("At volume limit (" + volLimitSteps() + "/" + NX500_VOLUME_STEPS + ").", "warn");
       return;
     }
     var s = explicitStep != null ? explicitStep : step();
     mcRequest("main/setVolume?volume=" + dir + "&step=" + s).then(function(r){
       describeResult(r, "Volume " + dir);
       if(r.ok){
-        if(currentVolume == null) currentVolume = Math.round(maxVol() * 0.3);
-        currentVolume = Math.max(0, Math.min(maxVol(), currentVolume + (dir === "up" ? s : -s)));
+        if(currentVolume == null) currentVolume = Math.round(volLimitSteps() * 0.3);
+        currentVolume = Math.max(0, Math.min(volLimitSteps(), currentVolume + (dir === "up" ? s : -s)));
         var newPct = pct();
         if(animateStepDelayMs){
           animateGaugeSteps(lastDisplayedPct, newPct, animateStepDelayMs);
@@ -1207,11 +1200,11 @@
     if(e.deltaY < 0){
       if(now - lastVolUpScrollTime < SCROLL_VOL_UP_THROTTLE_MS) return;
       lastVolUpScrollTime = now;
-      nudgeVolume("up", percentStep(SCROLL_VOL_UP_INCREMENT_PCT), SCROLL_VOL_UP_THROTTLE_MS / SCROLL_VOL_UP_INCREMENT_PCT);
+      nudgeVolume("up", SCROLL_VOL_UP_INCREMENT_STEPS, SCROLL_VOL_UP_THROTTLE_MS / SCROLL_VOL_UP_INCREMENT_STEPS);
     } else {
       if(now - lastVolDownScrollTime < SCROLL_VOL_DOWN_THROTTLE_MS) return;
       lastVolDownScrollTime = now;
-      nudgeVolume("down", percentStep(SCROLL_VOL_DOWN_INCREMENT_PCT), SCROLL_VOL_DOWN_THROTTLE_MS / SCROLL_VOL_DOWN_INCREMENT_PCT);
+      nudgeVolume("down", SCROLL_VOL_DOWN_INCREMENT_STEPS, SCROLL_VOL_DOWN_THROTTLE_MS / SCROLL_VOL_DOWN_INCREMENT_STEPS);
     }
   }, {passive:false});
 
@@ -1234,7 +1227,7 @@
       return mcRequest("main/setPower?power=on").then(function(powerResult){
         describeResult(powerResult, "Power on");
         if(!powerResult.ok) return null;
-        return delay(POWER_ON_SETTLE_MS).then(function(){ return setVolumeAbsolute(powerOnVolPct()); }).then(function(){
+        return delay(POWER_ON_SETTLE_MS).then(function(){ return setVolumeAbsolute(powerOnVolSteps()); }).then(function(){
           return mcRequest("main/setInput?input=" + encodeURIComponent(id)).then(function(inputResult){
             describeResult(inputResult, "Source → " + id);
             if(inputResult.ok) highlightActiveInput(id);
@@ -1246,29 +1239,6 @@
 
   function selectInput(id){
     activateInput(id);
-  }
-
-  // Reads the speaker's real volume ceiling in the background (no button —
-  // this used to be a visible "Discover" action) so maxVol() reflects the
-  // actual device range rather than a guessed default.
-  var discoveredTrueVolume = false;
-  function discoverTrueVolumeRange(){
-    if(discoveredTrueVolume) return;
-    mcRequest("system/getFeatures").then(function(r){
-      if(r.ok && !r.blind && r.data){
-        var zones = r.data.zone || [];
-        var main = zones.filter(function(z){ return z.id === "main"; })[0];
-        var steps = main && main.range_step ? main.range_step : [];
-        var volRange = steps.filter(function(s){ return s.id === "volume"; })[0];
-        if(!volRange) return;
-        trueMaxVolume = volRange.max;
-        trueVolStep = volRange.step;
-        discoveredTrueVolume = true;
-        updateGauge();
-        lastDisplayedPct = pct();
-        log("Discovered real volume range: max " + volRange.max + ", step " + volRange.step + ".", "ok");
-      }
-    });
   }
 
   // ---------- Settings drawer ----------
