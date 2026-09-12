@@ -237,12 +237,63 @@
   .now-info{
     display:flex;
     align-items:center;
+    justify-content:space-between;
     gap:var(--pad24);
     margin-top:var(--pad24);
     margin-bottom:var(--pad24);
   }
   .now-info > .icon-btn{ width:auto; flex:none; }
   .now-text{ flex:1; min-width:0; cursor:pointer; text-align:center; }
+  .line-control{ display:none; position:relative; }
+  .line-control .icon-btn{ width:auto; flex:none; }
+  .now-info.line-source .transport-control{ display:none; }
+  .now-info.line-source .line-control{ display:flex; }
+  .balance-popover{
+    position:absolute;
+    bottom:100%;
+    left:50%;
+    transform:translateX(-50%);
+    margin-bottom:8px;
+    display:none;
+    align-items:center;
+    gap:10px;
+    background:#111113;
+    border:1px solid #2c2c2e;
+    border-radius:14px;
+    padding:10px 12px;
+    box-shadow:0 12px 32px rgba(0,0,0,0.5);
+    z-index:12;
+    white-space:nowrap;
+  }
+  .balance-popover.open{ display:flex; }
+  .balance-nav-btn{
+    background:none;
+    border:none;
+    color:var(--fg);
+    width:32px; height:32px;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    cursor:pointer;
+    flex:none;
+  }
+  .balance-nav-btn svg{ width:18px; height:18px; }
+  .balance-nav-btn:hover{ background:rgba(255,255,255,0.15); }
+  .balance-value{ font-size:16px; font-weight:700; min-width:24px; text-align:center; }
+  .balance-reset-btn{
+    background:none;
+    border:none;
+    color:var(--fg-muted);
+    font-family:inherit;
+    font-size:12px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    cursor:pointer;
+    padding:4px 6px;
+    border-left:1px solid #2c2c2e;
+    margin-left:2px;
+  }
+  .balance-reset-btn:hover{ color:var(--fg); }
   .now-title{
     font-size:24px;
     font-weight:800;
@@ -552,18 +603,39 @@
     </button>
   </div>
 
-  <div class="now-info">
-    <button class="icon-btn" id="prevBtn" aria-label="Previous track">
+  <div class="now-info" id="nowInfo">
+    <button class="icon-btn transport-control" id="prevBtn" aria-label="Previous track">
       <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 4 9 12 19 20" fill="currentColor" stroke="none"/><line x1="5" y1="5" x2="5" y2="19"/></svg></span>
       <span class="icon-label">Previous</span>
     </button>
-    <div class="now-text">
+    <div class="now-text transport-control">
       <div class="now-title" id="trackTitle">Not connected</div>
       <div class="now-artist" id="trackArtist" style="display:none;"></div>
     </div>
-    <button class="icon-btn" id="nextBtn" aria-label="Next track">
+    <button class="icon-btn transport-control" id="nextBtn" aria-label="Next track">
       <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20" fill="currentColor" stroke="none"/><line x1="19" y1="5" x2="19" y2="19"/></svg></span>
       <span class="icon-label">Next</span>
+    </button>
+
+    <div class="line-control">
+      <button class="icon-btn" id="balanceBtn" aria-label="Balance" aria-haspopup="true" aria-expanded="false">
+        <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></span>
+        <span class="icon-label">Balance</span>
+      </button>
+      <div class="balance-popover" id="balancePopover">
+        <button class="balance-nav-btn" id="balanceLeftBtn" aria-label="Shift balance left">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <div class="balance-value" id="balanceValue">0</div>
+        <button class="balance-nav-btn" id="balanceRightBtn" aria-label="Shift balance right">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <button class="balance-reset-btn" id="balanceResetBtn" type="button">Reset</button>
+      </div>
+    </div>
+    <button class="icon-btn line-control" id="muteBtn" aria-label="Mute">
+      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg></span>
+      <span class="icon-label" id="muteLabel">Mute</span>
     </button>
   </div>
 
@@ -682,9 +754,22 @@
   var connectCircle = document.getElementById("connectCircle");
   var connectIpValue = document.getElementById("connectIpValue");
   var connectRefreshBtn = document.getElementById("connectRefreshBtn");
+  var nowInfo = document.getElementById("nowInfo");
+  var balanceBtn = document.getElementById("balanceBtn");
+  var balancePopover = document.getElementById("balancePopover");
+  var balanceLeftBtn = document.getElementById("balanceLeftBtn");
+  var balanceRightBtn = document.getElementById("balanceRightBtn");
+  var balanceResetBtn = document.getElementById("balanceResetBtn");
+  var balanceValue = document.getElementById("balanceValue");
+  var muteBtn = document.getElementById("muteBtn");
+  var muteLabel = document.getElementById("muteLabel");
 
   var isOn = true;
   var currentVolume = null;
+  var lastKnownMute = null;
+  var currentBalance = 0;
+  var BALANCE_MIN = -10;
+  var BALANCE_MAX = 10;
   var activeInput = null;
   var isConnected = false;
   function syncConnectIpValue(){
@@ -704,8 +789,13 @@
     server: "server",
     net_radio: "radio",
     tuner: "radio-tower",
-    line_in: "cable"
+    line_in: "cable",
+    optical: "waves"
   };
+  // Sources with no track/transport concept on this speaker — the
+  // now-playing bar shows Balance/Mute instead of Previous/Next for these.
+  var LINE_IN_SOURCES = { aux: true, optical: true, usb: true };
+  function isLineInSource(id){ return !!LINE_IN_SOURCES[id]; }
   function replaceIcon(element, name){
     element.innerHTML = '<i data-lucide="' + name + '"></i>';
   }
@@ -734,6 +824,7 @@
   var SOURCES = [
     { id: "airplay", label: "AirPlay" },
     { id: "aux", label: "AUX" },
+    { id: "optical", label: "Optical" },
     { id: "bluetooth", label: "Bluetooth" },
     { id: "usb", label: "USB" },
     { id: "server", label: "Server" },
@@ -876,7 +967,7 @@
     }
   }
 
-  var disableWhenOff = [volDownBtn, volUpBtn, prevBtn, nextBtn];
+  var disableWhenOff = [volDownBtn, volUpBtn, prevBtn, nextBtn, balanceBtn, muteBtn];
   function setPowerVisual(on){
     isOn = on;
     content.classList.toggle("powered-off", !on);
@@ -966,6 +1057,11 @@
     if(typeof data.volume === "number"){
       currentVolume = data.volume;
     }
+    if(typeof data.mute === "boolean"){
+      lastKnownMute = data.mute;
+      muteLabel.textContent = data.mute ? "Unmute" : "Mute";
+      muteBtn.classList.toggle("active", data.mute);
+    }
     if(typeof data.input === "string"){
       highlightActiveInput(data.input);
     }
@@ -999,6 +1095,9 @@
     activeInput = id;
     renderCompactSource(id);
     setPlaceholderIcon(id);
+    var isLineIn = isLineInSource(id);
+    nowInfo.classList.toggle("line-source", isLineIn);
+    if(!isLineIn) closeBalancePopover();
   }
 
   function setNowPlaying(track, artist){
@@ -1210,6 +1309,52 @@
 
   nextBtn.addEventListener("click", function(){
     mcRequest("netusb/setPlayback?playback=next").then(function(r){ describeResult(r, "Next track"); });
+  });
+
+  muteBtn.addEventListener("click", function(){
+    var next = !(lastKnownMute === true);
+    mcRequest("main/setMute?enable=" + next).then(function(r){
+      describeResult(r, next ? "Mute" : "Unmute");
+      if(r.ok){
+        lastKnownMute = next;
+        muteLabel.textContent = next ? "Unmute" : "Mute";
+        muteBtn.classList.toggle("active", next);
+      }
+    });
+  });
+
+  // Balance has no documented range for this speaker — -10..10 is a
+  // conservative guess; adjust BALANCE_MIN/MAX above if the real speaker
+  // rejects values in that range (check the log for the response_code).
+  function setBalance(value){
+    currentBalance = Math.max(BALANCE_MIN, Math.min(BALANCE_MAX, value));
+    balanceValue.textContent = currentBalance;
+    mcRequest("main/setBalance?balance=" + currentBalance).then(function(r){
+      describeResult(r, "Balance");
+    });
+  }
+  function openBalancePopover(){
+    balancePopover.classList.add("open");
+    balanceBtn.setAttribute("aria-expanded", "true");
+  }
+  function closeBalancePopover(){
+    balancePopover.classList.remove("open");
+    balanceBtn.setAttribute("aria-expanded", "false");
+  }
+  balanceBtn.addEventListener("click", function(){
+    if(balancePopover.classList.contains("open")) closeBalancePopover();
+    else openBalancePopover();
+  });
+  balanceLeftBtn.addEventListener("click", function(){ setBalance(currentBalance - 1); });
+  balanceRightBtn.addEventListener("click", function(){ setBalance(currentBalance + 1); });
+  balanceResetBtn.addEventListener("click", function(){ setBalance(0); });
+  document.addEventListener("click", function(e){
+    if(balancePopover.classList.contains("open") && !e.target.closest(".line-control")){
+      closeBalancePopover();
+    }
+  });
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape") closeBalancePopover();
   });
 
   function activateInput(id){
