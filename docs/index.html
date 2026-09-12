@@ -66,6 +66,9 @@
       <p class="note">
         <strong>Why download instead of a live page here:</strong> your speaker's control API is plain, unencrypted local HTTP with no login — by design, since it only works on your own network. Browsers block an HTTPS page (which this one is) from ever fetching a plain HTTP address ("mixed content"), so a version of the remote hosted live here could never actually reach your speaker. Downloading the file and opening it directly (double-click, or drag into a browser) sidesteps that restriction entirely.
       </p>
+      <p class="note">
+        <strong>On your phone:</strong> downloading and opening a local file is clunky on mobile. Instead, host this same file over plain HTTP on something always on your own network (a NAS's built-in web server, a Raspberry Pi, <code>python3 -m http.server</code> on any always-on machine) and open that <code>http://</code> address from your phone — see <a href="https://github.com/umilan/yama-remo#using-it-on-your-phone" target="_blank" rel="noopener">the README</a> for details.
+      </p>
     </div>
 
     <div class="card">
