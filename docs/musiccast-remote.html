@@ -202,10 +202,15 @@
     inset:0;
     color:rgba(255,255,255,1);
     display:flex;
+    flex-direction:column;
     align-items:center;
     justify-content:center;
   }
-  .art-placeholder svg{ width:38%; height:38%; display:block; }
+  .placeholder-volume{
+    font-size:24px;
+    font-weight:800;
+    letter-spacing:-0.01em;
+  }
   .off-overlay{
     position:absolute; inset:0;
     display:none;
@@ -591,10 +596,11 @@
       <div class="art-circle" id="artCircle">
         <img id="albumArt" alt="" hidden>
         <div class="art-placeholder" id="artPlaceholder">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          <span class="placeholder-volume" id="placeholderVolume">0</span>
+          <span class="vol-overlay-label">Volume</span>
         </div>
         <div class="off-overlay" id="offOverlay">OFF</div>
-        <div class="vol-overlay" id="volOverlay"><span id="volOverlayPct">0%</span><span class="vol-overlay-label">Volume</span></div>
+        <div class="vol-overlay" id="volOverlay"><span id="volOverlayPct">0</span><span class="vol-overlay-label">Volume</span></div>
       </div>
     </div>
     <button class="icon-btn vol-step" id="volUpBtn" aria-label="Volume up">
@@ -738,6 +744,7 @@
   var progressArc = document.getElementById("progressArc");
   var albumArt = document.getElementById("albumArt");
   var artPlaceholder = document.getElementById("artPlaceholder");
+  var placeholderVolume = document.getElementById("placeholderVolume");
   var volOverlay = document.getElementById("volOverlay");
   var volOverlayPct = document.getElementById("volOverlayPct");
   var trackTitle = document.getElementById("trackTitle");
@@ -781,17 +788,6 @@
     ipConfirmBtn.classList.toggle("connected", ok);
   }
 
-  var LUCIDE_SOURCE_ICONS = {
-    airplay: "airplay",
-    aux: "plug",
-    bluetooth: "bluetooth",
-    usb: "usb",
-    server: "server",
-    net_radio: "radio",
-    tuner: "radio-tower",
-    line_in: "cable",
-    optical: "waves"
-  };
   // Sources with no track/transport concept on this speaker — the
   // now-playing bar shows Balance/Mute instead of Previous/Next for these.
   var LINE_IN_SOURCES = { aux: true, optical: true, usb: true };
@@ -803,22 +799,7 @@
   replaceIcon(settingsBtn.querySelector(".icon-circle"), "settings-2");
   replaceIcon(settingsBtnConnect.querySelector(".icon-circle"), "settings-2");
   replaceIcon(nextBtn.querySelector(".icon-circle"), "skip-forward");
-  replaceIcon(document.querySelector(".art-placeholder"), "music-2");
   lucide.createIcons();
-
-  // Icons reused for the center placeholder when no album art is available —
-  // keep these in sync with the matching top-row source button markup.
-  var SOURCE_ICONS = {
-    airplay: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"/><polygon points="12 15 18 22 6 22 12 15"/></svg>',
-    aux: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/><path d="M12 3v3.5"/></svg>',
-    bluetooth: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6.5 6.5 17.5 17.5 12 23 12 1 17.5 6.5 6.5 17.5"/></svg>',
-    usb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="2" width="9" height="6.5" rx="1.2"/><path d="M9.5 8.5v3a2.5 2.5 0 0 0 2.5 2.5h0a2.5 2.5 0 0 0 2.5-2.5v-3"/><path d="M12 14v7"/><path d="M8.5 21h7"/></svg>',
-    "default": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>'
-  };
-  function setPlaceholderIcon(id){
-    replaceIcon(artPlaceholder, LUCIDE_SOURCE_ICONS[id] || "music-2");
-    lucide.createIcons();
-  }
 
   // Source dropdown, opened from the top bar's "AirPlay ⌄" label.
   var SOURCES = [
@@ -924,10 +905,14 @@
     progressArc.setAttribute("d", describeArc(CX, CY, R, START_ANGLE, START_ANGLE + sweep));
   }
   function setVolumeOverlayText(p){
-    volOverlayPct.textContent = Math.round(p);
+    var rounded = Math.round(p);
+    volOverlayPct.textContent = rounded;
+    placeholderVolume.textContent = rounded;
   }
   function updateGauge(){
-    drawGaugeForPercent(pct());
+    var p = pct();
+    drawGaugeForPercent(p);
+    setVolumeOverlayText(p);
   }
 
   var VOL_OVERLAY_DISMISS_MS = 2000;
@@ -1094,7 +1079,6 @@
   function highlightActiveInput(id){
     activeInput = id;
     renderCompactSource(id);
-    setPlaceholderIcon(id);
     var isLineIn = isLineInSource(id);
     nowInfo.classList.toggle("line-source", isLineIn);
     if(!isLineIn) closeBalancePopover();
