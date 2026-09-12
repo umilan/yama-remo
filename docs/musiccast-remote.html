@@ -8,7 +8,7 @@
 <style>
   :root{
     color-scheme: dark;
-    --bg:#330000;
+    --bg:#000000;
     --fg:#ffffff;
     --fg-dim:#57575a;
     --fg-muted:#8a8a8e;
@@ -32,84 +32,31 @@
     min-height:100vh;
   }
   .content{
-    width:100vw;
+    width:100%;
     display:flex;
     flex-direction:column;
-    height:100vh;
+    min-height:calc(100vh - (var(--pad24) * 2));
   }
-  
-  .topbar-full{
-    display:none;
-    grid-template-columns:repeat(10, minmax(0, 1fr));
-    width:100%;
-    align-items:flex-start;
-    margin-bottom:32px;
-  }
-  .topbar-compact{
+
+  .topbar{
     display:flex;
     align-items:center;
     justify-content:space-between;
     width:100%;
     margin-bottom:var(--pad24);
   }
-  .topbar-compact .icon-btn{
+  .topbar .icon-btn{
     width:auto;
     flex:0 0 auto;
-  }
-  .topbar-state{
-    flex:1;
-    min-width:0;
-    text-align:center;
-    font-size:14px;
-    font-weight:600;
-    color:var(--fg-muted);
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
-    padding:0 8px;
-  }
-  .middle-section{
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    flex:1;
-    min-height:0;
-  }
-  .source-row{
-    display:flex;
-    justify-content:center;
-    width:100%;
-    margin-bottom:var(--pad24);
-  }
-  @media (orientation:landscape) and (min-width:700px){
-    .topbar-compact{ display:none; }
-    .source-row{ display:none; }
-    .topbar-full{ display:grid; }
   }
   .source-switcher{
     position:relative;
     display:flex;
     align-items:center;
-    gap:2px;
+    justify-content:center;
     flex:1;
     min-width:0;
   }
-  .source-nav-btn{
-    background:none;
-    border:none;
-    color:var(--fg);
-    width:36px;
-    height:36px;
-    border-radius:50%;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    flex:none;
-    cursor:pointer;
-  }
-  .source-nav-btn svg{ width:22px; height:22px; }
-  .source-nav-btn:hover{ background:rgba(255,255,255,0.15); }
-  .source-nav-btn:active{ transform:scale(0.94); }
   .source-name-btn{
     background:none;
     border:none;
@@ -120,13 +67,18 @@
     padding:8px 10px;
     border-radius:10px;
     cursor:pointer;
-    flex:1 1 auto;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    max-width:100%;
     min-width:0;
-    text-align:center;
+  }
+  .source-name-btn span{
     overflow:hidden;
     text-overflow:ellipsis;
     white-space:nowrap;
   }
+  .source-name-btn svg{ width:18px; height:18px; flex:none; }
   .source-name-btn:hover{ background:rgba(255,255,255,0.1); }
   .source-dropdown{
     position:absolute;
@@ -210,17 +162,20 @@
   .now-row{
     display:flex;
     align-items:center;
+    justify-content:center;
     gap:var(--pad24);
+    flex:1;
     min-height:0;
   }
   .vol-step{
     flex:0 0 48px;
   }
+  .vol-step .icon-label{ white-space:normal; text-align:center; max-width:68px; }
   .button-symbol{ font-size:30px; font-weight:300; line-height:1; }
   .gauge-wrap{
     position:relative;
     flex:1;
-    max-width:260px;
+    max-width:min(70vw, 60vh, 460px);
     margin:0 auto;
     aspect-ratio:1/1;
   }
@@ -240,7 +195,7 @@
     touch-action:none;
     cursor:pointer;
   }
-  .art-circle img{ width:100%; height:100%; object-fit:cover; }
+  .art-circle img{ width:100%; height:100%; object-fit:cover; filter:brightness(0.55) saturate(0.9); }
   .art-circle img[hidden]{ display:none; }
   .art-placeholder{
     position:absolute;
@@ -265,18 +220,18 @@
   .vol-overlay{
     position:absolute; inset:0;
     display:flex;
+    flex-direction:column;
     align-items:center;
     justify-content:center;
     background:rgba(0,0,0,0.55);
     color:#fff;
-    font-size:34px;
-    font-weight:800;
-    letter-spacing:0.01em;
     opacity:0;
     pointer-events:none;
     transition:opacity 0.35s ease;
   }
   .vol-overlay.show{ opacity:1; }
+  #volOverlayPct{ font-size:34px; font-weight:800; letter-spacing:0.01em; }
+  .vol-overlay-label{ font-size:14px; font-weight:600; opacity:0.75; margin-top:2px; }
 
   /* Now playing info + transport */
   .now-info{
@@ -306,10 +261,6 @@
     margin-top:2px;
   }
 
-  @media (orientation:landscape) and (min-width:700px){
-    .gauge-wrap{ max-width:min(360px, calc(100vh - 260px)); }
-  }
-
   .content.powered-off .icon-btn:not(.power):not(.settings):not([data-input]){ color:var(--fg-dim); pointer-events:none; }
   .content.powered-off .icon-btn.active .icon-circle{ background:none; border-color:transparent; }
   .content.powered-off .icon-btn.active .icon-label{ color:var(--fg-dim); }
@@ -320,6 +271,78 @@
   .content.powered-off #trackArc{ stroke:#242426; }
   .content.powered-off .art-circle{ filter:grayscale(1) brightness(0.35); }
   .content.powered-off .off-overlay{ display:flex; }
+
+  /* Disconnected takeover screen */
+  .connect-screen{
+    display:none;
+    flex-direction:column;
+    flex:1;
+    min-height:0;
+  }
+  .content.disconnected .connect-screen{ display:flex; }
+  .content.disconnected > .topbar,
+  .content.disconnected > .now-row,
+  .content.disconnected > .now-info{ display:none; }
+  .connect-header{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:var(--pad24);
+    margin-bottom:var(--pad24);
+  }
+  .connect-title{
+    font-size:28px;
+    font-weight:800;
+    letter-spacing:-0.01em;
+    margin:0;
+  }
+  .connect-middle{
+    flex:1;
+    min-height:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .connect-circle{
+    width:min(70vw, 60vh, 340px);
+    aspect-ratio:1/1;
+    border-radius:50%;
+    background:#151517;
+    border:none;
+    color:var(--fg);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    cursor:pointer;
+    font-family:inherit;
+    padding:24px;
+  }
+  .connect-circle:hover{ background:#1c1c1e; }
+  .connect-circle:active{ transform:scale(0.98); }
+  .connect-ip-value{
+    font-size:26px;
+    font-weight:800;
+    letter-spacing:-0.01em;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    max-width:100%;
+  }
+  .connect-ip-label{ font-size:14px; color:var(--fg-muted); }
+  .connect-refresh{
+    background:none;
+    border:none;
+    color:var(--fg);
+    font-size:15px;
+    font-weight:800;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    padding:var(--pad24) 0 0;
+    cursor:pointer;
+    align-self:center;
+  }
+  .connect-refresh:hover{ opacity:0.8; }
 
   /* Settings drawer */
   .backdrop{
@@ -435,81 +458,45 @@
 <body>
 <div class="content" id="content">
 
-  <div class="topbar-compact" id="topbarCompact">
-    <button class="icon-btn power on" id="powerBtnCompact" aria-label="Power">
-      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8"/><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/></svg></span>
-      <span class="icon-label" id="powerLabelCompact">Turn off</span>
-    </button>
-    <span class="topbar-state" id="topbarStateText">Not connected</span>
-    <button class="icon-btn settings" id="settingsBtnCompact" aria-label="Settings…" title="Settings…">
-      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.2" fill="currentColor" stroke="none"/><line x1="4" y1="13" x2="20" y2="13"/><circle cx="16" cy="13" r="2.2" fill="currentColor" stroke="none"/><line x1="4" y1="19" x2="20" y2="19"/><circle cx="10" cy="19" r="2.2" fill="currentColor" stroke="none"/></svg></span>
-      <span class="icon-label">Settings</span>
-    </button>
+  <div class="connect-screen" id="connectScreen">
+    <div class="connect-header">
+      <h1 class="connect-title">Connect to speaker</h1>
+      <button class="icon-btn settings" id="settingsBtnConnect" aria-label="Settings…" title="Settings…">
+        <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.2" fill="currentColor" stroke="none"/><line x1="4" y1="13" x2="20" y2="13"/><circle cx="16" cy="13" r="2.2" fill="currentColor" stroke="none"/><line x1="4" y1="19" x2="20" y2="19"/><circle cx="10" cy="19" r="2.2" fill="currentColor" stroke="none"/></svg></span>
+        <span class="icon-label">Settings</span>
+      </button>
+    </div>
+    <div class="connect-middle">
+      <button class="connect-circle" id="connectCircle" type="button">
+        <span class="connect-ip-value" id="connectIpValue">Not set</span>
+        <span class="connect-ip-label">IP address</span>
+      </button>
+    </div>
+    <button class="connect-refresh" id="connectRefreshBtn" type="button">Refresh</button>
   </div>
 
-  <div class="topbar-full" id="topbarFull">
+  <div class="topbar" id="topbar">
     <button class="icon-btn power on" id="powerBtn" aria-label="Power">
       <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8"/><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/></svg></span>
       <span class="icon-label" id="powerLabel">Turn off</span>
     </button>
-    <button class="icon-btn" data-input="airplay" aria-label="AirPlay">
-      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"/><polygon points="12 15 18 22 6 22 12 15"/></svg></span>
-      <span class="icon-label">AirPlay</span>
-    </button>
-    <button class="icon-btn" data-input="aux" aria-label="AUX">
-      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/><path d="M12 3v3.5"/></svg></span>
-      <span class="icon-label">AUX</span>
-    </button>
-    <button class="icon-btn" data-input="bluetooth" aria-label="Bluetooth">
-      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6.5 6.5 17.5 17.5 12 23 12 1 17.5 6.5 6.5 17.5"/></svg></span>
-      <span class="icon-label">BT</span>
-    </button>
-    <button class="icon-btn" data-input="usb" aria-label="USB">
-      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="2" width="9" height="6.5" rx="1.2"/><path d="M9.5 8.5v3a2.5 2.5 0 0 0 2.5 2.5h0a2.5 2.5 0 0 0 2.5-2.5v-3"/><path d="M12 14v7"/><path d="M8.5 21h7"/></svg></span>
-      <span class="icon-label">USB</span>
-    </button>
-    <button class="icon-btn" data-input="server" aria-label="Server">
-      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>
-      <span class="icon-label">Server</span>
-    </button>
-    <button class="icon-btn" data-input="net_radio" aria-label="Net Radio">
-      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>
-      <span class="icon-label">Net Radio</span>
-    </button>
-    <button class="icon-btn" data-input="tuner" aria-label="Tuner">
-      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>
-      <span class="icon-label">Tuner</span>
-    </button>
-    <button class="icon-btn" data-input="line_in" aria-label="Line In">
-      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>
-      <span class="icon-label">Line In</span>
-    </button>
+    <div class="source-switcher">
+      <button class="source-name-btn" id="sourceNameBtn" aria-haspopup="listbox" aria-expanded="false">
+        <span id="sourceNameText">AirPlay</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="source-dropdown" id="sourceDropdown" role="listbox"></div>
+    </div>
     <button class="icon-btn settings" id="settingsBtn" aria-label="Settings…" title="Settings…">
       <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.2" fill="currentColor" stroke="none"/><line x1="4" y1="13" x2="20" y2="13"/><circle cx="16" cy="13" r="2.2" fill="currentColor" stroke="none"/><line x1="4" y1="19" x2="20" y2="19"/><circle cx="10" cy="19" r="2.2" fill="currentColor" stroke="none"/></svg></span>
       <span class="icon-label">Settings</span>
     </button>
   </div>
 
-  <div class="middle-section" id="middleSection">
-    <div class="source-row" id="sourceRow">
-      <div class="source-switcher">
-        <button class="source-nav-btn" id="sourcePrevBtn" aria-label="Previous source">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
-        </button>
-        <button class="source-name-btn" id="sourceNameBtn" aria-haspopup="listbox" aria-expanded="false">
-          <span id="sourceNameText">AirPlay</span>
-        </button>
-        <button class="source-nav-btn" id="sourceNextBtn" aria-label="Next source">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-        </button>
-        <div class="source-dropdown" id="sourceDropdown" role="listbox"></div>
-      </div>
-    </div>
-
-    <div class="now-row">
+  <div class="now-row">
     <button class="icon-btn vol-step" id="volDownBtn" aria-label="Volume down">
       <span class="icon-circle"><span class="button-symbol">−</span></span>
-      <span class="icon-label">Vol down</span>
+      <span class="icon-label">Volume down</span>
     </button>
     <div class="gauge-wrap">
       <svg viewBox="0 0 300 300">
@@ -528,14 +515,13 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
         </div>
         <div class="off-overlay" id="offOverlay">OFF</div>
-        <div class="vol-overlay" id="volOverlay"><span id="volOverlayPct">0%</span></div>
+        <div class="vol-overlay" id="volOverlay"><span id="volOverlayPct">0%</span><span class="vol-overlay-label">Volume</span></div>
       </div>
     </div>
     <button class="icon-btn vol-step" id="volUpBtn" aria-label="Volume up">
       <span class="icon-circle"><span class="button-symbol">+</span></span>
-      <span class="icon-label">Vol up</span>
+      <span class="icon-label">Volume up</span>
     </button>
-    </div>
   </div>
 
   <div class="now-info">
@@ -645,8 +631,6 @@
   var statusText = document.getElementById("statusText");
   var powerBtn = document.getElementById("powerBtn");
   var powerLabel = document.getElementById("powerLabel");
-  var powerBtnCompact = document.getElementById("powerBtnCompact");
-  var powerLabelCompact = document.getElementById("powerLabelCompact");
   var powerOnBtn = document.getElementById("powerOnBtn");
   var powerOffBtn = document.getElementById("powerOffBtn");
   var volDownBtn = document.getElementById("volDownBtn");
@@ -671,27 +655,30 @@
   var trackTitle = document.getElementById("trackTitle");
   var trackArtist = document.getElementById("trackArtist");
   var settingsBtn = document.getElementById("settingsBtn");
-  var settingsBtnCompact = document.getElementById("settingsBtnCompact");
-  var topbarStateText = document.getElementById("topbarStateText");
+  var settingsBtnConnect = document.getElementById("settingsBtnConnect");
   var drawerClose = document.getElementById("drawerClose");
   var drawer = document.getElementById("drawer");
   var backdrop = document.getElementById("backdrop");
-  var quickSourceBtns = document.querySelectorAll(".topbar-full .icon-btn[data-input]");
   var allSourceChips = document.querySelectorAll("#allSourceChips .chip[data-input]");
-  var sourcePrevBtn = document.getElementById("sourcePrevBtn");
-  var sourceNextBtn = document.getElementById("sourceNextBtn");
   var sourceNameBtn = document.getElementById("sourceNameBtn");
   var sourceNameText = document.getElementById("sourceNameText");
   var sourceDropdown = document.getElementById("sourceDropdown");
+  var connectScreen = document.getElementById("connectScreen");
+  var connectCircle = document.getElementById("connectCircle");
+  var connectIpValue = document.getElementById("connectIpValue");
+  var connectRefreshBtn = document.getElementById("connectRefreshBtn");
 
   var isOn = true;
   var currentVolume = null;
   var lastKnownMute = null;
   var activeInput = null;
   var isConnected = false;
+  function syncConnectIpValue(){
+    connectIpValue.textContent = currentIp() || "Not set";
+  }
   function setConnected(ok){
     isConnected = ok;
-    topbarStateText.textContent = ok ? "Connected" : "Not connected";
+    content.classList.toggle("disconnected", !ok);
   }
 
   var LUCIDE_SOURCE_ICONS = {
@@ -708,13 +695,8 @@
     element.innerHTML = '<i data-lucide="' + name + '"></i>';
   }
   replaceIcon(powerBtn.querySelector(".icon-circle"), "power");
-  replaceIcon(powerBtnCompact.querySelector(".icon-circle"), "power");
-  Object.keys(LUCIDE_SOURCE_ICONS).forEach(function(id){
-    var button = document.querySelector('.topbar-full [data-input="' + id + '"]');
-    if(button) replaceIcon(button.querySelector(".icon-circle"), LUCIDE_SOURCE_ICONS[id]);
-  });
   replaceIcon(settingsBtn.querySelector(".icon-circle"), "settings-2");
-  replaceIcon(settingsBtnCompact.querySelector(".icon-circle"), "settings-2");
+  replaceIcon(settingsBtnConnect.querySelector(".icon-circle"), "settings-2");
   replaceIcon(nextBtn.querySelector(".icon-circle"), "skip-forward");
   replaceIcon(document.querySelector(".art-placeholder"), "music-2");
   lucide.createIcons();
@@ -733,7 +715,7 @@
     lucide.createIcons();
   }
 
-  // Compact top bar: cycles/dropdown over the same sources as the full icon bar.
+  // Source dropdown, opened from the top bar's "AirPlay ⌄" label.
   var SOURCES = [
     { id: "airplay", label: "AirPlay" },
     { id: "aux", label: "AUX" },
@@ -744,7 +726,6 @@
     { id: "tuner", label: "Tuner" },
     { id: "line_in", label: "Line In" }
   ];
-  var currentSourceIndex = 0;
   var sourceDropdownItems = [];
   SOURCES.forEach(function(source, i){
     var item = document.createElement("button");
@@ -780,14 +761,6 @@
   document.addEventListener("keydown", function(e){
     if(e.key === "Escape") closeSourceDropdown();
   });
-  sourcePrevBtn.addEventListener("click", function(){
-    var idx = ((currentSourceIndex - 1) % SOURCES.length + SOURCES.length) % SOURCES.length;
-    selectInput(SOURCES[idx].id);
-  });
-  sourceNextBtn.addEventListener("click", function(){
-    var idx = (currentSourceIndex + 1) % SOURCES.length;
-    selectInput(SOURCES[idx].id);
-  });
 
   function renderCompactSource(id){
     var idx = -1;
@@ -795,7 +768,6 @@
       if(SOURCES[i].id === id){ idx = i; break; }
     }
     if(idx >= 0){
-      currentSourceIndex = idx;
       sourceNameText.textContent = SOURCES[idx].label;
     } else if(id){
       sourceNameText.textContent = id;
@@ -886,7 +858,6 @@
     content.classList.toggle("powered-off", !on);
     disableWhenOff.forEach(function(b){ b.disabled = !on; });
     powerLabel.textContent = on ? "Turn off" : "Turn on";
-    powerLabelCompact.textContent = on ? "Turn off" : "Turn on";
     if(!on) highlightActiveInput(null);
     if(!on){
       clearTimeout(volOverlayTimer);
@@ -1001,7 +972,6 @@
 
   function highlightActiveInput(id){
     activeInput = id;
-    quickSourceBtns.forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-input") === id); });
     allSourceChips.forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-input") === id); });
     renderCompactSource(id);
     Array.prototype.forEach.call(discoveredChips.children, function(b){
@@ -1078,7 +1048,7 @@
   // ---------- Wiring ----------
   refreshBtn.addEventListener("click", refreshStatus);
   ipInput.addEventListener("keydown", function(e){ if(e.key === "Enter") refreshStatus(); });
-  ipInput.addEventListener("input", function(){ setConnected(false); }); // editing the address invalidates any prior connection
+  ipInput.addEventListener("input", function(){ setConnected(false); syncConnectIpValue(); }); // editing the address invalidates any prior connection
 
   function primeVolumeIndicator(direction){
     return mcRequest("main/setVolume?volume=" + direction + "&step=1").then(function(r){
@@ -1109,7 +1079,6 @@
     });
   }
   powerBtn.addEventListener("click", function(){ goPower(!isOn); });
-  powerBtnCompact.addEventListener("click", function(){ goPower(!isOn); });
   powerOnBtn.addEventListener("click", function(){ goPower(true); });
   powerOffBtn.addEventListener("click", function(){ goPower(false); });
 
@@ -1242,7 +1211,6 @@
   function selectInput(id){
     activateInput(id);
   }
-  quickSourceBtns.forEach(function(b){ b.addEventListener("click", function(){ selectInput(b.getAttribute("data-input")); }); });
   allSourceChips.forEach(function(b){ b.addEventListener("click", function(){ selectInput(b.getAttribute("data-input")); }); });
 
   customInputBtn.addEventListener("click", function(){
@@ -1303,10 +1271,19 @@
   function openDrawer(){ drawer.classList.add("open"); backdrop.classList.add("open"); }
   function closeDrawer(){ drawer.classList.remove("open"); backdrop.classList.remove("open"); }
   settingsBtn.addEventListener("click", openDrawer);
-  settingsBtnCompact.addEventListener("click", openDrawer);
+  settingsBtnConnect.addEventListener("click", openDrawer);
   drawerClose.addEventListener("click", closeDrawer);
   backdrop.addEventListener("click", closeDrawer);
   maxVolInput.addEventListener("change", function(){ updateGauge(); lastDisplayedPct = pct(); });
+
+  // ---------- Disconnected takeover screen ----------
+  connectCircle.addEventListener("click", function(){
+    openDrawer();
+    ipInput.focus();
+    ipInput.select();
+  });
+  connectRefreshBtn.addEventListener("click", refreshStatus);
+  syncConnectIpValue();
 
   updateGauge();
   lastDisplayedPct = pct();
