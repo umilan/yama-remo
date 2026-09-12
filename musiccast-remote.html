@@ -340,13 +340,16 @@
   .content.disconnected > .now-row,
   .content.disconnected > .now-info{ display:none; }
   .connect-header{
-    display:flex;
+    display:grid;
+    grid-template-columns:1fr auto 1fr;
     align-items:flex-start;
-    justify-content:space-between;
     gap:var(--pad24);
     margin-bottom:var(--pad24);
   }
+  .connect-header .icon-btn{ grid-column:3; justify-self:end; width:auto; flex:none; }
   .connect-title{
+    grid-column:2;
+    text-align:center;
     font-size:28px;
     font-weight:800;
     letter-spacing:-0.01em;
@@ -377,14 +380,20 @@
   }
   .connect-circle:hover{ background:#1c1c1e; }
   .connect-circle:active{ transform:scale(0.98); }
-  .connect-ip-value{
+  .connect-ip-input{
+    background:none;
+    border:none;
+    color:var(--fg);
+    font-family:inherit;
     font-size:26px;
     font-weight:800;
     letter-spacing:-0.01em;
-    overflow:hidden;
-    text-overflow:ellipsis;
-    max-width:100%;
+    text-align:center;
+    width:100%;
+    padding:0;
   }
+  .connect-ip-input:focus{ outline:none; }
+  .connect-ip-input::placeholder{ color:var(--fg-dim); }
   .connect-ip-label{ font-size:14px; color:var(--fg-muted); }
   .connect-refresh{
     background:none;
@@ -551,10 +560,10 @@
       </button>
     </div>
     <div class="connect-middle">
-      <button class="connect-circle" id="connectCircle" type="button">
-        <span class="connect-ip-value" id="connectIpValue">Not set</span>
+      <div class="connect-circle" id="connectCircle">
+        <input id="ipInput" class="connect-ip-input" type="text" inputmode="decimal" aria-label="Speaker IP address" placeholder="192.168.1.42" value="192.168.1.13" autocomplete="off" spellcheck="false">
         <span class="connect-ip-label">IP address</span>
-      </button>
+      </div>
     </div>
     <button class="connect-refresh" id="connectRefreshBtn" type="button">Refresh</button>
   </div>
@@ -658,9 +667,9 @@
   </div>
 
   <div class="settings-row">
-    <label for="ipInput">IP address</label>
+    <label for="ipInputSettings">IP address</label>
     <div class="settings-row-control">
-      <input id="ipInput" type="text" inputmode="decimal" placeholder="192.168.1.42" value="192.168.1.13" autocomplete="off" spellcheck="false">
+      <input id="ipInputSettings" type="text" inputmode="decimal" placeholder="192.168.1.42" value="192.168.1.13" autocomplete="off" spellcheck="false">
       <button id="ipConfirmBtn" class="ip-confirm" type="button" aria-label="Confirm and test connection" title="Confirm">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       </button>
@@ -759,8 +768,8 @@
   var sourceDropdown = document.getElementById("sourceDropdown");
   var connectScreen = document.getElementById("connectScreen");
   var connectCircle = document.getElementById("connectCircle");
-  var connectIpValue = document.getElementById("connectIpValue");
   var connectRefreshBtn = document.getElementById("connectRefreshBtn");
+  var ipInputSettings = document.getElementById("ipInputSettings");
   var nowInfo = document.getElementById("nowInfo");
   var balanceBtn = document.getElementById("balanceBtn");
   var balancePopover = document.getElementById("balancePopover");
@@ -779,8 +788,13 @@
   var BALANCE_MAX = 10;
   var activeInput = null;
   var isConnected = false;
-  function syncConnectIpValue(){
-    connectIpValue.textContent = currentIp() || "Not set";
+  // ipInput (on the connect screen) is the canonical field currentIp()
+  // reads; ipInputSettings just mirrors it so the IP is also editable
+  // from Settings without disconnecting first.
+  function syncIpInputs(source){
+    var value = source.value;
+    if(ipInput !== source) ipInput.value = value;
+    if(ipInputSettings !== source) ipInputSettings.value = value;
   }
   function setConnected(ok){
     isConnected = ok;
@@ -1147,8 +1161,11 @@
 
   // ---------- Wiring ----------
   ipConfirmBtn.addEventListener("click", refreshStatus);
-  ipInput.addEventListener("keydown", function(e){ if(e.key === "Enter") refreshStatus(); });
-  ipInput.addEventListener("input", function(){ setConnected(false); syncConnectIpValue(); }); // editing the address invalidates any prior connection
+  [ipInput, ipInputSettings].forEach(function(field){
+    field.addEventListener("keydown", function(e){ if(e.key === "Enter") refreshStatus(); });
+    // Editing the address invalidates any prior connection.
+    field.addEventListener("input", function(){ syncIpInputs(field); setConnected(false); });
+  });
 
   function primeVolumeIndicator(direction){
     return mcRequest("main/setVolume?volume=" + direction + "&step=1").then(function(r){
@@ -1394,13 +1411,11 @@
   });
 
   // ---------- Disconnected takeover screen ----------
-  connectCircle.addEventListener("click", function(){
-    openDrawer();
-    ipInput.focus();
-    ipInput.select();
+  connectCircle.addEventListener("click", function(e){
+    if(e.target !== ipInput) ipInput.focus();
   });
   connectRefreshBtn.addEventListener("click", refreshStatus);
-  syncConnectIpValue();
+  syncIpInputs(ipInput);
 
   updateGauge();
   lastDisplayedPct = pct();
