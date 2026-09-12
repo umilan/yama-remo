@@ -1,12 +1,1317 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="refresh" content="0; url=docs/">
-  <title>yama-remo</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MusiCast Remote</title>
+<script src="https://unpkg.com/lucide@latest"></script>
+<style>
+  :root{
+    color-scheme: dark;
+    --bg:#000000;
+    --fg:#ffffff;
+    --fg-dim:#57575a;
+    --fg-muted:#8a8a8e;
+    --track:#2c2c2e;
+    --accent:#ff2ec4;
+    --accent-2:#c400ff;
+    --active-bg:rgba(255,46,196,0.14);
+    --active-border:#ff2ec4;
+    --danger:#ff4d4d;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body{
+    margin:0;
+    padding-block:24px;
+    padding-inline:16px;
+    background:var(--bg);
+    color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    display:flex;
+    justify-content:center;
+    min-height:100vh;
+  }
+  .phone{
+    width:100%;
+    max-width:420px;
+    display:flex;
+    flex-direction:column;
+    min-height:calc(100vh - 48px);
+  }
+  @media (orientation:landscape) and (min-width:700px){
+    body{ padding-block:16px; }
+    .phone{ max-width:760px; min-height:calc(100vh - 32px); }
+    .topbar-full{ margin-bottom:16px; }
+    .now-row{ width:min(100%, 700px); margin-inline:auto; }
+    .gauge-wrap{ max-width:min(360px, calc(100vh - 200px)); }
+    .now-info{ width:min(100%, 700px); margin:16px auto; }
+  }
+  .topbar-full{
+    display:none;
+    grid-template-columns:repeat(10, minmax(0, 1fr));
+    width:100%;
+    align-items:flex-start;
+    margin-bottom:32px;
+  }
+  .topbar-compact{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    width:100%;
+    margin-bottom:8px;
+  }
+  .topbar-compact .icon-btn{
+    width:auto;
+    flex:0 0 auto;
+  }
+  .topbar-state{
+    flex:1;
+    min-width:0;
+    text-align:center;
+    font-size:14px;
+    font-weight:600;
+    color:var(--fg-muted);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    padding:0 8px;
+  }
+  .source-row{
+    display:flex;
+    justify-content:center;
+    width:100%;
+    margin-bottom:32px;
+  }
+  @media (orientation:landscape) and (min-width:700px){
+    .topbar-compact{ display:none; }
+    .source-row{ display:none; }
+    .topbar-full{ display:grid; }
+  }
+  .source-switcher{
+    position:relative;
+    display:flex;
+    align-items:center;
+    gap:2px;
+    flex:1;
+    min-width:0;
+  }
+  .source-nav-btn{
+    background:none;
+    border:none;
+    color:var(--fg);
+    width:36px;
+    height:36px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex:none;
+    cursor:pointer;
+  }
+  .source-nav-btn svg{ width:22px; height:22px; }
+  .source-nav-btn:hover{ background:rgba(255,255,255,0.15); }
+  .source-nav-btn:active{ transform:scale(0.94); }
+  .source-name-btn{
+    background:none;
+    border:none;
+    color:var(--fg);
+    font-family:inherit;
+    font-size:19px;
+    font-weight:700;
+    padding:8px 10px;
+    border-radius:10px;
+    cursor:pointer;
+    flex:1 1 auto;
+    min-width:0;
+    text-align:center;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .source-name-btn:hover{ background:rgba(255,255,255,0.1); }
+  .source-dropdown{
+    position:absolute;
+    top:100%;
+    left:50%;
+    transform:translateX(-50%);
+    margin-top:8px;
+    display:none;
+    flex-direction:column;
+    gap:2px;
+    min-width:180px;
+    max-height:280px;
+    overflow-y:auto;
+    background:#111113;
+    border:1px solid #2c2c2e;
+    border-radius:14px;
+    padding:6px;
+    box-shadow:0 12px 32px rgba(0,0,0,0.5);
+    z-index:12;
+  }
+  .source-dropdown.open{ display:flex; }
+  .source-dropdown-item{
+    background:none;
+    border:none;
+    color:var(--fg);
+    font-family:inherit;
+    font-size:14px;
+    font-weight:600;
+    text-align:left;
+    padding:10px 14px;
+    border-radius:10px;
+    cursor:pointer;
+  }
+  .source-dropdown-item:hover{ background:rgba(255,255,255,0.08); }
+  .source-dropdown-item.active{ background:var(--active-bg); color:var(--accent); }
+  .phone.powered-off .source-dropdown-item.active{ background:none; color:var(--fg-dim); }
+  .icon-btn{
+    background:none;
+    border:none;
+    color:var(--fg);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    cursor:pointer;
+    padding:4px 0;
+    width:100%;
+    flex:none;
+    min-width:0;
+  }
+  .icon-circle{
+    width:48px;
+    height:48px;
+    border-radius:50%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:1.5px solid transparent;
+    transition:background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .icon-btn svg{ width:24px; height:24px; }
+  .icon-label{
+    font-size:11px;
+    font-weight:600;
+    color:inherit;
+    opacity:0.5;
+    white-space:nowrap;
+    letter-spacing:0.01em;
+  }
+  .icon-btn:hover .icon-circle{ background:rgba(255,255,255,0.25); cursor:pointer; }
+  .icon-btn:active .icon-circle{ transform:scale(0.94); }
+  .icon-btn.active .icon-circle{
+    background:var(--active-bg);
+    border: 0px solid black;
+    color:var(--accent);
+  }
+  .icon-btn.active .icon-label{ color:var(--accent); opacity:1; }
+  .icon-btn.power.on{ color:var(--fg); }
+
+  /* Volume + dial row */
+  .now-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex:1;
+    min-height:0;
+  }
+  .vol-step{
+    flex:0 0 48px;
+  }
+  .button-symbol{ font-size:30px; font-weight:300; line-height:1; }
+  .gauge-wrap{
+    position:relative;
+    flex:1;
+    max-width:260px;
+    margin:0 auto;
+    aspect-ratio:1/1;
+  }
+  .gauge-wrap svg{ width:100%; height:100%; display:block; }
+  .art-circle{
+    position:absolute;
+    top:50%; left:50%;
+    width:64%; height:64%;
+    transform:translate(-50%,-50%);
+    border-radius:50%;
+    overflow:hidden;
+    background:linear-gradient(150deg, #2a49a8 0%, #17204f 55%, #090b1c 100%);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:filter 0.2s ease;
+    touch-action:none;
+    cursor:pointer;
+  }
+  .art-circle img{ width:100%; height:100%; object-fit:cover; }
+  .art-circle img[hidden]{ display:none; }
+  .art-placeholder{
+    position:absolute;
+    inset:0;
+    color:rgba(255,255,255,1);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .art-placeholder svg{ width:38%; height:38%; display:block; }
+  .off-overlay{
+    position:absolute; inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    background:rgba(0,0,0,0.6);
+    color:var(--fg-dim);
+    font-size:15px;
+    font-weight:800;
+    letter-spacing:0.08em;
+  }
+  .vol-overlay{
+    position:absolute; inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:rgba(0,0,0,0.55);
+    color:#fff;
+    font-size:34px;
+    font-weight:800;
+    letter-spacing:0.01em;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.35s ease;
+  }
+  .vol-overlay.show{ opacity:1; }
+
+  /* Now playing info + transport */
+  .now-info{
+    display:flex;
+    align-items:center;
+    gap:16px;
+    margin-top:24px;
+    margin-bottom:16px;
+  }
+  .now-info > .icon-btn{ width:auto; flex:none; }
+  .now-text{ flex:1; min-width:0; cursor:pointer; text-align:center; }
+  .now-title{
+    font-size:24px;
+    font-weight:800;
+    letter-spacing:-0.01em;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .now-artist{
+    font-size:15px;
+    color:var(--fg-muted);
+    font-weight:500;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    margin-top:2px;
+  }
+
+  @media (orientation:landscape) and (min-width:700px){
+    .gauge-wrap{ max-width:min(360px, calc(100vh - 260px)); }
+  }
+
+  .phone.powered-off .icon-btn:not(.power):not(.settings):not([data-input]){ color:var(--fg-dim); pointer-events:none; }
+  .phone.powered-off .icon-btn.active .icon-circle{ background:none; border-color:transparent; }
+  .phone.powered-off .icon-btn.active .icon-label{ color:var(--fg-dim); }
+  .phone.powered-off .vol-step{ color:var(--fg-dim); pointer-events:none; }
+  .phone.powered-off .now-info .icon-btn{ color:var(--fg-dim); pointer-events:none; }
+  .phone.powered-off .now-title, .phone.powered-off .now-artist{ color:var(--fg-dim); }
+  .phone.powered-off #progressArc{ opacity:0; }
+  .phone.powered-off #trackArc{ stroke:#242426; }
+  .phone.powered-off .art-circle{ filter:grayscale(1) brightness(0.35); }
+  .phone.powered-off .off-overlay{ display:flex; }
+
+  /* Settings drawer */
+  .backdrop{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.6);
+    opacity:0; pointer-events:none;
+    transition:opacity 0.2s ease;
+    z-index:10;
+  }
+  .backdrop.open{ opacity:1; pointer-events:auto; }
+  .drawer{
+    position:fixed;
+    left:0; right:0; bottom:0;
+    max-height:86vh;
+    overflow-y:auto;
+    background:#111113;
+    border-radius:24px 24px 0 0;
+    padding:24px 24px calc(24px + env(safe-area-inset-bottom));
+    transform:translateY(100%);
+    transition:transform 0.25s ease;
+    z-index:11;
+    display:flex;
+    flex-direction:column;
+    gap:24px;
+    border-top:1px solid #2c2c2e;
+  }
+  .drawer.open{ transform:translateY(0); }
+  .drawer h2{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--fg-muted);
+    margin:0 0 12px;
+    font-weight:700;
+  }
+  .drawer-handle{
+    width:36px; height:4px; border-radius:2px;
+    background:#3a3a3c;
+    margin:0 auto 4px;
+  }
+  .drawer-head{
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .drawer-head strong{ font-size:16px; }
+  .drawer-close{
+    background:none; border:none; color:var(--fg-muted);
+    font-size:15px; font-weight:600; cursor:pointer; padding:8px;
+  }
+  .drawer-close:hover{ color:var(--fg); }
+  .field-group{ display:flex; flex-direction:column; gap:8px; }
+  label{ font-size:13px; color:var(--fg-muted); font-weight:600; }
+  input[type="text"], input[type="number"]{
+    width:100%;
+    padding:12px 14px;
+    border-radius:10px;
+    border:1px solid #2c2c2e;
+    background:#1c1c1e;
+    color:var(--fg);
+    font-size:15px;
+    font-family:inherit;
+  }
+  input:focus{ outline:2px solid var(--accent); outline-offset:1px; }
+  .row{ display:flex; gap:8px; align-items:center; }
+  .row.wrap{ flex-wrap:wrap; }
+  .grow{ flex:1; min-width:0; }
+  button.pill{
+    font-family:inherit;
+    font-size:14px;
+    font-weight:600;
+    border-radius:10px;
+    border:1px solid #2c2c2e;
+    background:#1c1c1e;
+    color:var(--fg);
+    padding:12px 16px;
+    cursor:pointer;
+  }
+  button.pill:hover{ background:#242426; cursor:pointer; }
+  button.pill:active{ transform:translateY(1px); }
+  button.pill.primary{ background:var(--accent); border-color:var(--accent); color:#000; font-weight:700; }
+  button.pill.danger{ color:var(--danger); border-color:var(--danger); background:none; }
+  button.pill.danger:hover{ background:rgba(255,77,77,0.1); }
+  .status-line{
+    display:flex; align-items:center; gap:8px;
+    font-size:13px; color:var(--fg-muted); line-height:1.5;
+  }
+  .dot{ width:8px; height:8px; border-radius:50%; background:var(--fg-dim); flex:none; }
+  .dot.ok{ background:#34c759; }
+  .dot.warn{ background:#e6a41c; }
+  .dot.bad{ background:var(--danger); }
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{
+    border-radius:999px; padding:8px 16px; font-size:13px; font-weight:600;
+    background:#1c1c1e; border:1px solid #2c2c2e; color:var(--fg); cursor:pointer;
+  }
+  .chip:hover{ border-color:#3a3a3c; }
+  .chip.active{ background:var(--active-bg); border-color:var(--accent); color:var(--accent); }
+  .note{ font-size:12px; color:var(--fg-muted); line-height:1.5; margin:0; }
+  details{ border-top:1px solid #2c2c2e; padding-top:16px; }
+  summary{ cursor:pointer; font-size:13px; font-weight:600; color:var(--fg-muted); list-style:none; }
+  summary::-webkit-details-marker{ display:none; }
+  summary::before{ content:"▸ "; }
+  details[open] summary::before{ content:"▾ "; }
+  .log{
+    margin-top:12px; display:flex; flex-direction:column; gap:6px;
+    font-size:12px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    max-height:140px; overflow-y:auto; color:var(--fg-muted);
+  }
+  .log-entry.bad{ color:var(--danger); }
+  .log-entry.warn{ color:#e6a41c; }
+  .log-entry.ok{ color:#34c759; }
+</style>
 </head>
 <body>
-  <p><a href="docs/">Open yama-remo</a></p>
+<div class="phone" id="phone">
+
+  <div class="topbar-compact" id="topbarCompact">
+    <button class="icon-btn power on" id="powerBtnCompact" aria-label="Power">
+      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8"/><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/></svg></span>
+      <span class="icon-label" id="powerLabelCompact">Turn off</span>
+    </button>
+    <span class="topbar-state" id="topbarStateText">Not connected</span>
+    <button class="icon-btn settings" id="settingsBtnCompact" aria-label="Settings…" title="Settings…">
+      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.2" fill="currentColor" stroke="none"/><line x1="4" y1="13" x2="20" y2="13"/><circle cx="16" cy="13" r="2.2" fill="currentColor" stroke="none"/><line x1="4" y1="19" x2="20" y2="19"/><circle cx="10" cy="19" r="2.2" fill="currentColor" stroke="none"/></svg></span>
+      <span class="icon-label">Settings</span>
+    </button>
+  </div>
+
+  <div class="source-row" id="sourceRow">
+    <div class="source-switcher">
+      <button class="source-nav-btn" id="sourcePrevBtn" aria-label="Previous source">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+      </button>
+      <button class="source-name-btn" id="sourceNameBtn" aria-haspopup="listbox" aria-expanded="false">
+        <span id="sourceNameText">AirPlay</span>
+      </button>
+      <button class="source-nav-btn" id="sourceNextBtn" aria-label="Next source">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+      </button>
+      <div class="source-dropdown" id="sourceDropdown" role="listbox"></div>
+    </div>
+  </div>
+
+  <div class="topbar-full" id="topbarFull">
+    <button class="icon-btn power on" id="powerBtn" aria-label="Power">
+      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8"/><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/></svg></span>
+      <span class="icon-label" id="powerLabel">Turn off</span>
+    </button>
+    <button class="icon-btn" data-input="airplay" aria-label="AirPlay">
+      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"/><polygon points="12 15 18 22 6 22 12 15"/></svg></span>
+      <span class="icon-label">AirPlay</span>
+    </button>
+    <button class="icon-btn" data-input="aux" aria-label="AUX">
+      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/><path d="M12 3v3.5"/></svg></span>
+      <span class="icon-label">AUX</span>
+    </button>
+    <button class="icon-btn" data-input="bluetooth" aria-label="Bluetooth">
+      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6.5 6.5 17.5 17.5 12 23 12 1 17.5 6.5 6.5 17.5"/></svg></span>
+      <span class="icon-label">BT</span>
+    </button>
+    <button class="icon-btn" data-input="usb" aria-label="USB">
+      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="2" width="9" height="6.5" rx="1.2"/><path d="M9.5 8.5v3a2.5 2.5 0 0 0 2.5 2.5h0a2.5 2.5 0 0 0 2.5-2.5v-3"/><path d="M12 14v7"/><path d="M8.5 21h7"/></svg></span>
+      <span class="icon-label">USB</span>
+    </button>
+    <button class="icon-btn" data-input="server" aria-label="Server">
+      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>
+      <span class="icon-label">Server</span>
+    </button>
+    <button class="icon-btn" data-input="net_radio" aria-label="Net Radio">
+      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>
+      <span class="icon-label">Net Radio</span>
+    </button>
+    <button class="icon-btn" data-input="tuner" aria-label="Tuner">
+      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>
+      <span class="icon-label">Tuner</span>
+    </button>
+    <button class="icon-btn" data-input="line_in" aria-label="Line In">
+      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg></span>
+      <span class="icon-label">Line In</span>
+    </button>
+    <button class="icon-btn settings" id="settingsBtn" aria-label="Settings…" title="Settings…">
+      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.2" fill="currentColor" stroke="none"/><line x1="4" y1="13" x2="20" y2="13"/><circle cx="16" cy="13" r="2.2" fill="currentColor" stroke="none"/><line x1="4" y1="19" x2="20" y2="19"/><circle cx="10" cy="19" r="2.2" fill="currentColor" stroke="none"/></svg></span>
+      <span class="icon-label">Settings</span>
+    </button>
+  </div>
+
+  <div class="now-row">
+    <button class="icon-btn vol-step" id="volDownBtn" aria-label="Volume down">
+      <span class="icon-circle"><span class="button-symbol">−</span></span>
+      <span class="icon-label">Vol down</span>
+    </button>
+    <div class="gauge-wrap">
+      <svg viewBox="0 0 300 300">
+        <path id="trackArc" fill="none" stroke="var(--track)" stroke-width="22" stroke-linecap="round"/>
+        <defs>
+          <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="var(--accent)"/>
+            <stop offset="100%" stop-color="var(--accent-2)"/>
+          </linearGradient>
+        </defs>
+        <path id="progressArc" fill="none" stroke="url(#grad)" stroke-width="22" stroke-linecap="round"/>
+      </svg>
+      <div class="art-circle" id="artCircle">
+        <img id="albumArt" alt="" hidden>
+        <div class="art-placeholder" id="artPlaceholder">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>
+        <div class="off-overlay" id="offOverlay">OFF</div>
+        <div class="vol-overlay" id="volOverlay"><span id="volOverlayPct">0%</span></div>
+      </div>
+    </div>
+    <button class="icon-btn vol-step" id="volUpBtn" aria-label="Volume up">
+      <span class="icon-circle"><span class="button-symbol">+</span></span>
+      <span class="icon-label">Vol up</span>
+    </button>
+  </div>
+
+  <div class="now-info">
+    <button class="icon-btn" id="prevBtn" aria-label="Previous track">
+      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 4 9 12 19 20" fill="currentColor" stroke="none"/><line x1="5" y1="5" x2="5" y2="19"/></svg></span>
+      <span class="icon-label">Previous</span>
+    </button>
+    <div class="now-text">
+      <div class="now-title" id="trackTitle">Not connected</div>
+      <div class="now-artist" id="trackArtist" style="display:none;"></div>
+    </div>
+    <button class="icon-btn" id="nextBtn" aria-label="Next track">
+      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20" fill="currentColor" stroke="none"/><line x1="19" y1="5" x2="19" y2="19"/></svg></span>
+      <span class="icon-label">Next</span>
+    </button>
+  </div>
+
+</div>
+
+<div class="backdrop" id="backdrop"></div>
+<div class="drawer" id="drawer" role="dialog" aria-label="Settings">
+  <div class="drawer-handle"></div>
+  <div class="drawer-head">
+    <strong>Settings</strong>
+    <button class="drawer-close" id="drawerClose">Done</button>
+  </div>
+
+  <div class="field-group">
+    <label for="ipInput">Speaker IP address</label>
+    <div class="row">
+      <input id="ipInput" class="grow" type="text" inputmode="decimal" placeholder="e.g. 192.168.1.42" value="192.168.1.13" autocomplete="off" spellcheck="false">
+      <button id="refreshBtn" class="pill primary">Connect</button>
+    </div>
+    <div class="status-line">
+      <span id="statusDot" class="dot"></span>
+      <span id="statusText">Enter your speaker's IP address and press Connect.</span>
+    </div>
+  </div>
+
+  <div class="field-group">
+    <h2>Power</h2>
+    <div class="row">
+      <button id="powerOnBtn" class="pill primary grow">Power on</button>
+      <button id="powerOffBtn" class="pill danger grow">Standby</button>
+    </div>
+  </div>
+
+  <div class="field-group">
+    <h2>Volume</h2>
+    <div class="row">
+      <button id="muteBtn" class="pill">Mute</button>
+      <div class="field-group grow">
+        <label for="maxVolInput">Max volume on this speaker</label>
+        <input id="maxVolInput" type="number" min="1" max="200" value="60">
+      </div>
+      <div class="field-group grow">
+        <label for="stepInput">Step size for +/−</label>
+        <input id="stepInput" type="number" min="1" max="20" value="2">
+      </div>
+    </div>
+    <button id="discoverVolBtn" class="pill" style="align-self:flex-start;">Discover volume range from speaker…</button>
+    <p class="note">The dial shows volume level as a ring position based on "max volume", since MusicCast doesn't expose the real range without a status read. Adjust it to match your speaker if it looks off — the +/− buttons work regardless, or use Discover to read the real max/step from <code>system/getFeatures</code>.</p>
+  </div>
+
+  <div class="field-group">
+    <h2>All sources</h2>
+    <div class="chips" id="allSourceChips">
+      <button class="chip" data-input="airplay">AirPlay</button>
+      <button class="chip" data-input="aux">AUX</button>
+      <button class="chip" data-input="bluetooth">Bluetooth</button>
+      <button class="chip" data-input="usb">USB</button>
+      <button class="chip" data-input="server">Server (DLNA)</button>
+      <button class="chip" data-input="net_radio">Net Radio</button>
+      <button class="chip" data-input="tuner">Tuner</button>
+      <button class="chip" data-input="line_in">Line In</button>
+    </div>
+    <details>
+      <summary>Custom / discovered inputs</summary>
+      <div style="margin-top:12px; display:flex; flex-direction:column; gap:12px;">
+        <div class="row">
+          <input id="customInput" class="grow" type="text" placeholder="e.g. spotify, hdmi1, audio1" autocomplete="off" spellcheck="false">
+          <button id="customInputBtn" class="pill">Set</button>
+        </div>
+        <button id="discoverBtn" class="pill" style="align-self:flex-start;">Discover actual inputs from speaker…</button>
+        <div id="discoveredChips" class="chips"></div>
+        <p class="note">"AUX" is a best guess — Yamaha's input IDs vary by model (aux, aux1, line_in, audio1…). Use Discover if your browser can read the response, or try a custom ID.</p>
+      </div>
+    </details>
+  </div>
+
+  <details>
+    <summary>Activity log</summary>
+    <div id="log" class="log"><div class="log-entry">Ready.</div></div>
+  </details>
+
+  <p class="note">Talks directly to your speaker's built-in MusicCast API over plain HTTP on your local network. Browsers can block reading the response from another device (CORS) — commands still work, they're just "fire and forget" with no readback, and now-playing info / album art will only appear if your browser allows that read. Nothing here ever leaves your network.</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var phone = document.getElementById("phone");
+  var ipInput = document.getElementById("ipInput");
+  var refreshBtn = document.getElementById("refreshBtn");
+  var statusDot = document.getElementById("statusDot");
+  var statusText = document.getElementById("statusText");
+  var powerBtn = document.getElementById("powerBtn");
+  var powerLabel = document.getElementById("powerLabel");
+  var powerBtnCompact = document.getElementById("powerBtnCompact");
+  var powerLabelCompact = document.getElementById("powerLabelCompact");
+  var powerOnBtn = document.getElementById("powerOnBtn");
+  var powerOffBtn = document.getElementById("powerOffBtn");
+  var volDownBtn = document.getElementById("volDownBtn");
+  var volUpBtn = document.getElementById("volUpBtn");
+  var prevBtn = document.getElementById("prevBtn");
+  var nextBtn = document.getElementById("nextBtn");
+  var muteBtn = document.getElementById("muteBtn");
+  var maxVolInput = document.getElementById("maxVolInput");
+  var stepInput = document.getElementById("stepInput");
+  var customInput = document.getElementById("customInput");
+  var customInputBtn = document.getElementById("customInputBtn");
+  var discoverBtn = document.getElementById("discoverBtn");
+  var discoverVolBtn = document.getElementById("discoverVolBtn");
+  var discoveredChips = document.getElementById("discoveredChips");
+  var logEl = document.getElementById("log");
+  var trackArc = document.getElementById("trackArc");
+  var progressArc = document.getElementById("progressArc");
+  var albumArt = document.getElementById("albumArt");
+  var artPlaceholder = document.getElementById("artPlaceholder");
+  var volOverlay = document.getElementById("volOverlay");
+  var volOverlayPct = document.getElementById("volOverlayPct");
+  var trackTitle = document.getElementById("trackTitle");
+  var trackArtist = document.getElementById("trackArtist");
+  var settingsBtn = document.getElementById("settingsBtn");
+  var settingsBtnCompact = document.getElementById("settingsBtnCompact");
+  var topbarStateText = document.getElementById("topbarStateText");
+  var drawerClose = document.getElementById("drawerClose");
+  var drawer = document.getElementById("drawer");
+  var backdrop = document.getElementById("backdrop");
+  var quickSourceBtns = document.querySelectorAll(".topbar-full .icon-btn[data-input]");
+  var allSourceChips = document.querySelectorAll("#allSourceChips .chip[data-input]");
+  var sourcePrevBtn = document.getElementById("sourcePrevBtn");
+  var sourceNextBtn = document.getElementById("sourceNextBtn");
+  var sourceNameBtn = document.getElementById("sourceNameBtn");
+  var sourceNameText = document.getElementById("sourceNameText");
+  var sourceDropdown = document.getElementById("sourceDropdown");
+
+  var isOn = true;
+  var currentVolume = null;
+  var lastKnownMute = null;
+  var activeInput = null;
+  var isConnected = false;
+  function setConnected(ok){
+    isConnected = ok;
+    topbarStateText.textContent = ok ? "Connected" : "Not connected";
+  }
+
+  var LUCIDE_SOURCE_ICONS = {
+    airplay: "airplay",
+    aux: "plug",
+    bluetooth: "bluetooth",
+    usb: "usb",
+    server: "server",
+    net_radio: "radio",
+    tuner: "radio-tower",
+    line_in: "cable"
+  };
+  function replaceIcon(element, name){
+    element.innerHTML = '<i data-lucide="' + name + '"></i>';
+  }
+  replaceIcon(powerBtn.querySelector(".icon-circle"), "power");
+  replaceIcon(powerBtnCompact.querySelector(".icon-circle"), "power");
+  Object.keys(LUCIDE_SOURCE_ICONS).forEach(function(id){
+    var button = document.querySelector('.topbar-full [data-input="' + id + '"]');
+    if(button) replaceIcon(button.querySelector(".icon-circle"), LUCIDE_SOURCE_ICONS[id]);
+  });
+  replaceIcon(settingsBtn.querySelector(".icon-circle"), "settings-2");
+  replaceIcon(settingsBtnCompact.querySelector(".icon-circle"), "settings-2");
+  replaceIcon(nextBtn.querySelector(".icon-circle"), "skip-forward");
+  replaceIcon(document.querySelector(".art-placeholder"), "music-2");
+  lucide.createIcons();
+
+  // Icons reused for the center placeholder when no album art is available —
+  // keep these in sync with the matching top-row source button markup.
+  var SOURCE_ICONS = {
+    airplay: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1"/><polygon points="12 15 18 22 6 22 12 15"/></svg>',
+    aux: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2.5" fill="currentColor" stroke="none"/><path d="M12 3v3.5"/></svg>',
+    bluetooth: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6.5 6.5 17.5 17.5 12 23 12 1 17.5 6.5 6.5 17.5"/></svg>',
+    usb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7.5" y="2" width="9" height="6.5" rx="1.2"/><path d="M9.5 8.5v3a2.5 2.5 0 0 0 2.5 2.5h0a2.5 2.5 0 0 0 2.5-2.5v-3"/><path d="M12 14v7"/><path d="M8.5 21h7"/></svg>',
+    "default": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>'
+  };
+  function setPlaceholderIcon(id){
+    replaceIcon(artPlaceholder, LUCIDE_SOURCE_ICONS[id] || "music-2");
+    lucide.createIcons();
+  }
+
+  // Compact top bar: cycles/dropdown over the same sources as the full icon bar.
+  var SOURCES = [
+    { id: "airplay", label: "AirPlay" },
+    { id: "aux", label: "AUX" },
+    { id: "bluetooth", label: "Bluetooth" },
+    { id: "usb", label: "USB" },
+    { id: "server", label: "Server" },
+    { id: "net_radio", label: "Net Radio" },
+    { id: "tuner", label: "Tuner" },
+    { id: "line_in", label: "Line In" }
+  ];
+  var currentSourceIndex = 0;
+  var sourceDropdownItems = [];
+  SOURCES.forEach(function(source, i){
+    var item = document.createElement("button");
+    item.className = "source-dropdown-item";
+    item.setAttribute("data-input", source.id);
+    item.setAttribute("role", "option");
+    item.textContent = source.label;
+    item.addEventListener("click", function(){
+      closeSourceDropdown();
+      selectInput(source.id);
+    });
+    sourceDropdown.appendChild(item);
+    sourceDropdownItems.push(item);
+  });
+
+  function openSourceDropdown(){
+    sourceDropdown.classList.add("open");
+    sourceNameBtn.setAttribute("aria-expanded", "true");
+  }
+  function closeSourceDropdown(){
+    sourceDropdown.classList.remove("open");
+    sourceNameBtn.setAttribute("aria-expanded", "false");
+  }
+  sourceNameBtn.addEventListener("click", function(){
+    if(sourceDropdown.classList.contains("open")) closeSourceDropdown();
+    else openSourceDropdown();
+  });
+  document.addEventListener("click", function(e){
+    if(sourceDropdown.classList.contains("open") && !e.target.closest(".source-switcher")){
+      closeSourceDropdown();
+    }
+  });
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape") closeSourceDropdown();
+  });
+  sourcePrevBtn.addEventListener("click", function(){
+    var idx = ((currentSourceIndex - 1) % SOURCES.length + SOURCES.length) % SOURCES.length;
+    selectInput(SOURCES[idx].id);
+  });
+  sourceNextBtn.addEventListener("click", function(){
+    var idx = (currentSourceIndex + 1) % SOURCES.length;
+    selectInput(SOURCES[idx].id);
+  });
+
+  function renderCompactSource(id){
+    var idx = -1;
+    for(var i = 0; i < SOURCES.length; i++){
+      if(SOURCES[i].id === id){ idx = i; break; }
+    }
+    if(idx >= 0){
+      currentSourceIndex = idx;
+      sourceNameText.textContent = SOURCES[idx].label;
+    } else if(id){
+      sourceNameText.textContent = id;
+    } else {
+      sourceNameText.textContent = "Source";
+    }
+    sourceDropdownItems.forEach(function(item){
+      item.classList.toggle("active", item.getAttribute("data-input") === id);
+    });
+  }
+
+  // ---------- Gauge geometry (300x300 viewBox, gap centered at bottom) ----------
+  var CX = 150, CY = 150, R = 120;
+  var START_ANGLE = 210;      // bottom-left tip
+  var TOTAL_SWEEP = 300;      // degrees of arc, leaving a 60deg gap at the bottom
+
+  function polarToCartesian(cx, cy, r, angleDeg){
+    var rad = (angleDeg - 90) * Math.PI / 180;
+    return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+  }
+  function describeArc(cx, cy, r, startAngle, endAngle){
+    var start = polarToCartesian(cx, cy, r, startAngle);
+    var end = polarToCartesian(cx, cy, r, endAngle);
+    var largeArcFlag = (endAngle - startAngle) <= 180 ? 0 : 1;
+    return ["M", start.x, start.y, "A", r, r, 0, largeArcFlag, 1, end.x, end.y].join(" ");
+  }
+  trackArc.setAttribute("d", describeArc(CX, CY, R, START_ANGLE, START_ANGLE + TOTAL_SWEEP));
+
+  function maxVol(){ return parseInt(maxVolInput.value, 10) || 60; }
+  function step(){ return parseInt(stepInput.value, 10) || 2; }
+
+  function pct(){
+    if(currentVolume == null) return 0;
+    return Math.max(0, Math.min(100, Math.round((currentVolume / maxVol()) * 100)));
+  }
+
+  function drawGaugeForPercent(p){
+    var sweep = TOTAL_SWEEP * (Math.max(0, Math.min(100, p)) / 100);
+    progressArc.setAttribute("d", describeArc(CX, CY, R, START_ANGLE, START_ANGLE + sweep));
+  }
+  function setVolumeOverlayText(p){
+    volOverlayPct.textContent = Math.round(p) + "%";
+  }
+  function updateGauge(){
+    drawGaugeForPercent(pct());
+  }
+
+  var VOL_OVERLAY_DISMISS_MS = 2000;
+  var volOverlayTimer = null;
+  function showVolumeOverlay(){
+    volOverlay.classList.add("show");
+    clearTimeout(volOverlayTimer);
+    volOverlayTimer = setTimeout(function(){
+      volOverlay.classList.remove("show");
+    }, VOL_OVERLAY_DISMISS_MS);
+  }
+
+  var lastDisplayedPct = 0;
+  var gaugeAnimTimer = null;
+  function animateGaugeSteps(fromPct, toPct, stepDelayMs){
+    clearTimeout(gaugeAnimTimer);
+    var from = Math.round(fromPct);
+    var to = Math.round(toPct);
+    var dir = to > from ? 1 : -1;
+    var current = from;
+    function tick(){
+      if(current === to) return;
+      current += dir;
+      drawGaugeForPercent(current);
+      setVolumeOverlayText(current);
+      lastDisplayedPct = current;
+      if(current !== to){
+        gaugeAnimTimer = setTimeout(tick, stepDelayMs);
+      }
+    }
+    if(from === to){
+      drawGaugeForPercent(to);
+      setVolumeOverlayText(to);
+      lastDisplayedPct = to;
+    } else {
+      gaugeAnimTimer = setTimeout(tick, stepDelayMs);
+    }
+  }
+
+  var disableWhenOff = [volDownBtn, volUpBtn, prevBtn, nextBtn];
+  function setPowerVisual(on){
+    isOn = on;
+    phone.classList.toggle("powered-off", !on);
+    disableWhenOff.forEach(function(b){ b.disabled = !on; });
+    powerLabel.textContent = on ? "Turn off" : "Turn on";
+    powerLabelCompact.textContent = on ? "Turn off" : "Turn on";
+    if(!on) highlightActiveInput(null);
+    if(!on){
+      clearTimeout(volOverlayTimer);
+      volOverlay.classList.remove("show");
+    }
+  }
+
+  // ---------- Networking ----------
+  function log(msg, level){
+    var entry = document.createElement("div");
+    entry.className = "log-entry" + (level ? " " + level : "");
+    entry.textContent = "[" + new Date().toLocaleTimeString() + "] " + msg;
+    logEl.appendChild(entry);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function setStatus(text, level){
+    statusText.textContent = text;
+    statusDot.className = "dot" + (level ? " " + level : "");
+  }
+  function currentIp(){ return ipInput.value.trim(); }
+
+  // Any request that actually reaches the speaker — even a fire-and-forget
+  // command like Power or Volume, not just the periodic status poll — is
+  // proof the speaker is reachable. Keep isConnected (and the now-playing
+  // text) in sync with that, so pressing a button that really works flips
+  // "Not connected" to "Connected" immediately instead of waiting on the
+  // next explicit status refresh.
+  function noteConnection(ok){
+    if(ok === isConnected) return;
+    setConnected(ok);
+    if(ok){
+      if(trackTitle.textContent === "Not connected") setNowPlaying(null, null);
+    } else {
+      setNowPlaying(null, null);
+      setStatus("Lost contact with the speaker at this address.", "bad");
+    }
+  }
+
+  function mcRequest(path){
+    var ip = currentIp();
+    if(!ip){
+      noteConnection(false);
+      return Promise.resolve({ok:false, reason:"no-ip"});
+    }
+    var url = "http://" + ip + "/YamahaExtendedControl/v1/" + path;
+    return fetch(url, {cache:"no-store"}).then(function(res){
+      return res.json().then(function(data){ return {ok:true, data:data, blind:false}; });
+    }).catch(function(){
+      return fetch(url, {mode:"no-cors", cache:"no-store"}).then(function(){
+        return {ok:true, blind:true};
+      }).catch(function(err){ return {ok:false, reason:"network", error:err}; });
+    }).then(function(r){
+      noteConnection(r.ok);
+      return r;
+    });
+  }
+
+  function describeResult(r, label){
+    if(!r.ok){
+      if(r.reason === "no-ip"){
+        log("Open Settings and enter a speaker IP first.", "warn");
+      } else {
+        log(label + " failed — speaker unreachable at this address.", "bad");
+      }
+      return;
+    }
+    log(r.blind ? (label + " sent (no readback — browser CORS).") : (label + " confirmed by speaker."), r.blind ? "warn" : "ok");
+  }
+
+  function renderStatusData(data){
+    if(typeof data.power === "string"){
+      setPowerVisual(data.power === "on");
+    }
+    if(typeof data.volume === "number"){
+      currentVolume = data.volume;
+    }
+    if(typeof data.max_volume === "number"){
+      maxVolInput.value = data.max_volume;
+    }
+    if(typeof data.mute === "boolean"){
+      lastKnownMute = data.mute;
+      muteBtn.textContent = data.mute ? "Unmute" : "Mute";
+    }
+    if(typeof data.input === "string"){
+      highlightActiveInput(data.input);
+    }
+    if(!isOn) highlightActiveInput(null);
+    updateGauge();
+    lastDisplayedPct = pct();
+  }
+
+  function showAlbumArt(url){
+    albumArt.onerror = function(){ albumArt.hidden = true; artPlaceholder.style.display = "flex"; };
+    albumArt.onload = function(){ albumArt.hidden = false; artPlaceholder.style.display = "none"; };
+    albumArt.src = url;
+  }
+
+  function fetchPlayInfo(){
+    mcRequest("netusb/getPlayInfo").then(function(r){
+      if(r.ok && !r.blind && r.data){
+        var d = r.data;
+        var known = !!d.track && (d.playback === "play" || d.playback === "pause");
+        setNowPlaying(known ? d.track : null, known ? d.artist : null);
+        if(known && d.albumart_url){
+          showAlbumArt("http://" + currentIp() + d.albumart_url);
+        }
+        log("Now-playing info updated.", "ok");
+      }
+      // if blind or unreachable, just leave "Not playing" / the source icon placeholder in place — not worth logging noise here
+    });
+  }
+
+  function highlightActiveInput(id){
+    activeInput = id;
+    quickSourceBtns.forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-input") === id); });
+    allSourceChips.forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-input") === id); });
+    renderCompactSource(id);
+    Array.prototype.forEach.call(discoveredChips.children, function(b){
+      b.classList.toggle("active", b.getAttribute("data-input") === id);
+    });
+    setPlaceholderIcon(id);
+  }
+
+  function setNowPlaying(track, artist){
+    if(track){
+      trackTitle.textContent = track;
+      trackArtist.textContent = artist || "";
+    } else if(isConnected){
+      trackTitle.textContent = "Not playing";
+      trackArtist.textContent = "Connected";
+    } else {
+      trackTitle.textContent = "Not connected";
+      trackArtist.textContent = "";
+    }
+    trackArtist.style.display = trackArtist.textContent ? "" : "none";
+  }
+
+  var connectingNow = false;
+
+  function refreshStatus(){
+    if(!currentIp()){
+      setConnected(false);
+      setNowPlaying(null, null);
+      setStatus("Enter your speaker's IP address and press Connect.", "");
+      return;
+    }
+    setStatus("Connecting…", "");
+    trackTitle.textContent = "Connecting…";
+    trackArtist.style.display = "none";
+    mcRequest("main/getStatus").then(function(r){
+      if(r.ok && !r.blind && r.data){
+        setConnected(true);
+        renderStatusData(r.data);
+        setStatus("Connected.", "ok");
+        log("Status refreshed.", "ok");
+        fetchPlayInfo();
+      } else if(r.ok && r.blind){
+        setConnected(true);
+        setNowPlaying(null, null); // reachable, so show "Not playing" instead of "Connecting…"/"Not connected"
+        setStatus("Speaker reachable, but the browser can't read its response (CORS). Buttons still work.", "warn");
+        log("getStatus sent, response blocked by CORS.", "warn");
+      } else {
+        setConnected(false);
+        setNowPlaying(null, null);
+        setStatus("Couldn't reach a speaker at this address. Check the IP and network.", "bad");
+        log("getStatus failed — unreachable.", "bad");
+      }
+    }).then(function(){ connectingNow = false; }, function(){ connectingNow = false; });
+  }
+
+  // Tapping the now-playing text before we're connected kicks off a connection
+  // attempt using whatever IP is currently entered, rather than requiring a
+  // trip into Settings first. The now-playing area shows "Connecting…" as
+  // immediate feedback, then resolves to "Not playing"/track/"Not connected".
+  // (Every other button already sends its own command — Power, volume,
+  // source, playback — and any command that actually reaches the speaker
+  // marks us connected via noteConnection(), so those buttons don't need a
+  // separate, redundant status check that could race against their own
+  // request and report a stale result.)
+  function ensureConnected(){
+    if(isConnected || connectingNow || !currentIp()) return;
+    connectingNow = true;
+    refreshStatus();
+  }
+  document.addEventListener("click", function(e){
+    if(e.target.closest && e.target.closest(".now-text")){ ensureConnected(); }
+  });
+
+  // ---------- Wiring ----------
+  refreshBtn.addEventListener("click", refreshStatus);
+  ipInput.addEventListener("keydown", function(e){ if(e.key === "Enter") refreshStatus(); });
+  ipInput.addEventListener("input", function(){ setConnected(false); }); // editing the address invalidates any prior connection
+
+  function primeVolumeIndicator(direction){
+    return mcRequest("main/setVolume?volume=" + direction + "&step=1").then(function(r){
+      describeResult(r, "Volume indicator");
+      if(r.ok){
+        if(currentVolume == null) currentVolume = Math.round(maxVol() * 0.3);
+        currentVolume = Math.max(0, Math.min(maxVol(), currentVolume + (direction === "up" ? 1 : -1)));
+        updateGauge();
+      }
+      return r;
+    });
+  }
+
+  function goPower(on){
+    var wasOn = isOn;
+    setPowerVisual(on);
+    var powerRequest = on
+      ? mcRequest("main/setPower?power=on")
+      : primeVolumeIndicator("down").then(function(){ return mcRequest("main/setPower?power=standby"); });
+    powerRequest.then(function(r){
+      describeResult(r, on ? "Power on" : "Standby");
+      // The button flips instantly for responsiveness, but if the command
+      // never actually reached the speaker, undo that guess — otherwise the
+      // controls sit "enabled" while the app also says "Not connected",
+      // which is a contradiction the UI shouldn't show.
+      if(!r.ok) setPowerVisual(wasOn);
+      else if(on) primeVolumeIndicator("up").then(refreshStatus);
+    });
+  }
+  powerBtn.addEventListener("click", function(){ goPower(!isOn); });
+  powerBtnCompact.addEventListener("click", function(){ goPower(!isOn); });
+  powerOnBtn.addEventListener("click", function(){ goPower(true); });
+  powerOffBtn.addEventListener("click", function(){ goPower(false); });
+
+  var SCROLL_VOL_UP_INCREMENT_PCT = 1;
+  var SCROLL_VOL_DOWN_INCREMENT_PCT = 2;
+  var SCROLL_VOL_UP_THROTTLE_MS = 500;
+  var SCROLL_VOL_DOWN_THROTTLE_MS = 200;
+  var lastVolUpScrollTime = 0;
+  var lastVolDownScrollTime = 0;
+
+  function percentStep(amountPct){
+    return Math.max(1, Math.round(maxVol() * amountPct / 100));
+  }
+
+  function nudgeVolume(dir, explicitStep, animateStepDelayMs){
+    var s = explicitStep != null ? explicitStep : step();
+    mcRequest("main/setVolume?volume=" + dir + "&step=" + s).then(function(r){
+      describeResult(r, "Volume " + dir);
+      if(r.ok){
+        if(currentVolume == null) currentVolume = Math.round(maxVol() * 0.3);
+        currentVolume = Math.max(0, Math.min(maxVol(), currentVolume + (dir === "up" ? s : -s)));
+        var newPct = pct();
+        if(animateStepDelayMs){
+          animateGaugeSteps(lastDisplayedPct, newPct, animateStepDelayMs);
+        } else {
+          updateGauge();
+          setVolumeOverlayText(newPct);
+          lastDisplayedPct = newPct;
+        }
+        showVolumeOverlay();
+      }
+    });
+  }
+  volUpBtn.addEventListener("click", function(){ nudgeVolume("up"); });
+  volDownBtn.addEventListener("click", function(){ nudgeVolume("down"); });
+
+  function togglePlayback(){
+    mcRequest("netusb/setPlayback?playback=play_pause").then(function(r){ describeResult(r, "Play/pause"); });
+  }
+  prevBtn.addEventListener("click", function(){
+    mcRequest("netusb/setPlayback?playback=previous").then(function(r){ describeResult(r, "Previous track"); });
+  });
+
+  var gestureStartY = 0;
+  var gestureMoved = false;
+  var gestureLongPressed = false;
+  var gestureTimer = null;
+  function clearGestureTimer(){
+    if(gestureTimer){ clearTimeout(gestureTimer); gestureTimer = null; }
+  }
+  artCircle.addEventListener("pointerdown", function(e){
+    gestureStartY = e.clientY;
+    gestureMoved = false;
+    gestureLongPressed = false;
+    clearGestureTimer();
+    try{ artCircle.setPointerCapture(e.pointerId); }catch(_){ }
+    gestureTimer = setTimeout(function(){
+      gestureLongPressed = true;
+      goPower(!isOn);
+    }, 650);
+  });
+  artCircle.addEventListener("pointermove", function(e){
+    if(Math.abs(e.clientY - gestureStartY) >= 24){
+      gestureMoved = true;
+      clearGestureTimer();
+    }
+  });
+  artCircle.addEventListener("pointerup", function(e){
+    clearGestureTimer();
+    if(gestureLongPressed) return;
+    if(gestureMoved){
+      if(isOn) nudgeVolume(e.clientY < gestureStartY ? "up" : "down");
+      return;
+    }
+    if(isOn) togglePlayback();
+  });
+  artCircle.addEventListener("pointercancel", clearGestureTimer);
+  artCircle.addEventListener("wheel", function(e){
+    e.preventDefault();
+    if(!isOn) return;
+    var now = Date.now();
+    if(e.deltaY < 0){
+      if(now - lastVolUpScrollTime < SCROLL_VOL_UP_THROTTLE_MS) return;
+      lastVolUpScrollTime = now;
+      nudgeVolume("up", percentStep(SCROLL_VOL_UP_INCREMENT_PCT), SCROLL_VOL_UP_THROTTLE_MS / SCROLL_VOL_UP_INCREMENT_PCT);
+    } else {
+      if(now - lastVolDownScrollTime < SCROLL_VOL_DOWN_THROTTLE_MS) return;
+      lastVolDownScrollTime = now;
+      nudgeVolume("down", percentStep(SCROLL_VOL_DOWN_INCREMENT_PCT), SCROLL_VOL_DOWN_THROTTLE_MS / SCROLL_VOL_DOWN_INCREMENT_PCT);
+    }
+  }, {passive:false});
+
+  nextBtn.addEventListener("click", function(){
+    mcRequest("netusb/setPlayback?playback=next").then(function(r){ describeResult(r, "Next track"); });
+  });
+
+  muteBtn.addEventListener("click", function(){
+    var next = !(lastKnownMute === true);
+    mcRequest("main/setMute?enable=" + next).then(function(r){
+      describeResult(r, next ? "Mute" : "Unmute");
+      if(r.ok){ lastKnownMute = next; muteBtn.textContent = next ? "Unmute" : "Mute"; }
+    });
+  });
+
+  function activateInput(id){
+    if(!currentIp()){
+      describeResult({ok:false, reason:"no-ip"}, "Source → " + id);
+      return;
+    }
+    var connection = isConnected ? Promise.resolve({ok:true}) : mcRequest("main/getStatus");
+    connection.then(function(r){
+      if(!r.ok){
+        describeResult(r, "Connect");
+        return null;
+      }
+      setPowerVisual(true);
+      return mcRequest("main/setPower?power=on").then(function(powerResult){
+        describeResult(powerResult, "Power on");
+        if(!powerResult.ok) return null;
+        return primeVolumeIndicator("up").then(function(){
+          return mcRequest("main/setInput?input=" + encodeURIComponent(id)).then(function(inputResult){
+            describeResult(inputResult, "Source → " + id);
+            if(inputResult.ok) highlightActiveInput(id);
+          });
+        });
+      });
+    });
+  }
+
+  function selectInput(id){
+    activateInput(id);
+  }
+  quickSourceBtns.forEach(function(b){ b.addEventListener("click", function(){ selectInput(b.getAttribute("data-input")); }); });
+  allSourceChips.forEach(function(b){ b.addEventListener("click", function(){ selectInput(b.getAttribute("data-input")); }); });
+
+  customInputBtn.addEventListener("click", function(){
+    var id = customInput.value.trim();
+    if(id) selectInput(id);
+  });
+  customInput.addEventListener("keydown", function(e){ if(e.key === "Enter") customInputBtn.click(); });
+
+  discoverBtn.addEventListener("click", function(){
+    log("Requesting input list from speaker…");
+    mcRequest("system/getFeatures").then(function(r){
+      if(r.ok && !r.blind && r.data){
+        var zones = r.data.zone || [];
+        var main = zones.filter(function(z){ return z.id === "main"; })[0];
+        var ids = main && main.input_list ? main.input_list : [];
+        if(!ids.length){ log("No input list found in getFeatures.", "warn"); return; }
+        discoveredChips.innerHTML = "";
+        ids.forEach(function(id){
+          var btn = document.createElement("button");
+          btn.className = "chip";
+          btn.setAttribute("data-input", id);
+          btn.textContent = id;
+          btn.addEventListener("click", function(){ selectInput(id); });
+          discoveredChips.appendChild(btn);
+        });
+        log("Discovered " + ids.length + " input(s).", "ok");
+      } else if(r.ok && r.blind){
+        log("Speaker reachable but the browser blocked reading getFeatures (CORS). Try a custom input ID instead.", "warn");
+      } else {
+        log("Couldn't reach the speaker to discover inputs.", "bad");
+      }
+    });
+  });
+
+  discoverVolBtn.addEventListener("click", function(){
+    log("Requesting volume range from speaker…");
+    mcRequest("system/getFeatures").then(function(r){
+      if(r.ok && !r.blind && r.data){
+        var zones = r.data.zone || [];
+        var main = zones.filter(function(z){ return z.id === "main"; })[0];
+        var steps = main && main.range_step ? main.range_step : [];
+        var volRange = steps.filter(function(s){ return s.id === "volume"; })[0];
+        if(!volRange){ log("No volume range found in getFeatures.", "warn"); return; }
+        maxVolInput.value = volRange.max;
+        stepInput.value = volRange.step;
+        updateGauge();
+        lastDisplayedPct = pct();
+        log("Discovered volume range: max " + volRange.max + ", step " + volRange.step + ".", "ok");
+      } else if(r.ok && r.blind){
+        log("Speaker reachable but the browser blocked reading getFeatures (CORS). Enter the max volume manually instead.", "warn");
+      } else {
+        log("Couldn't reach the speaker to discover the volume range.", "bad");
+      }
+    });
+  });
+
+  // ---------- Settings drawer ----------
+  function openDrawer(){ drawer.classList.add("open"); backdrop.classList.add("open"); }
+  function closeDrawer(){ drawer.classList.remove("open"); backdrop.classList.remove("open"); }
+  settingsBtn.addEventListener("click", openDrawer);
+  settingsBtnCompact.addEventListener("click", openDrawer);
+  drawerClose.addEventListener("click", closeDrawer);
+  backdrop.addEventListener("click", closeDrawer);
+  maxVolInput.addEventListener("change", function(){ updateGauge(); lastDisplayedPct = pct(); });
+
+  updateGauge();
+  lastDisplayedPct = pct();
+  refreshStatus();
+})();
+</script>
 </body>
 </html>
