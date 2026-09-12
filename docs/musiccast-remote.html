@@ -68,6 +68,13 @@
     white-space:nowrap;
     padding:0 8px;
   }
+  .middle-section{
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    flex:1;
+    min-height:0;
+  }
   .source-row{
     display:flex;
     justify-content:center;
@@ -440,21 +447,6 @@
     </button>
   </div>
 
-  <div class="source-row" id="sourceRow">
-    <div class="source-switcher">
-      <button class="source-nav-btn" id="sourcePrevBtn" aria-label="Previous source">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
-      </button>
-      <button class="source-name-btn" id="sourceNameBtn" aria-haspopup="listbox" aria-expanded="false">
-        <span id="sourceNameText">AirPlay</span>
-      </button>
-      <button class="source-nav-btn" id="sourceNextBtn" aria-label="Next source">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
-      </button>
-      <div class="source-dropdown" id="sourceDropdown" role="listbox"></div>
-    </div>
-  </div>
-
   <div class="topbar-full" id="topbarFull">
     <button class="icon-btn power on" id="powerBtn" aria-label="Power">
       <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8"/><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/></svg></span>
@@ -498,7 +490,23 @@
     </button>
   </div>
 
-  <div class="now-row">
+  <div class="middle-section" id="middleSection">
+    <div class="source-row" id="sourceRow">
+      <div class="source-switcher">
+        <button class="source-nav-btn" id="sourcePrevBtn" aria-label="Previous source">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <button class="source-name-btn" id="sourceNameBtn" aria-haspopup="listbox" aria-expanded="false">
+          <span id="sourceNameText">AirPlay</span>
+        </button>
+        <button class="source-nav-btn" id="sourceNextBtn" aria-label="Next source">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        </button>
+        <div class="source-dropdown" id="sourceDropdown" role="listbox"></div>
+      </div>
+    </div>
+
+    <div class="now-row">
     <button class="icon-btn vol-step" id="volDownBtn" aria-label="Volume down">
       <span class="icon-circle"><span class="button-symbol">−</span></span>
       <span class="icon-label">Vol down</span>
@@ -527,6 +535,7 @@
       <span class="icon-circle"><span class="button-symbol">+</span></span>
       <span class="icon-label">Vol up</span>
     </button>
+    </div>
   </div>
 
   <div class="now-info">
