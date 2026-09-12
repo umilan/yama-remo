@@ -926,14 +926,24 @@
     }
     var url = "http://" + ip + "/YamahaExtendedControl/v1/" + path;
     return fetch(url, {cache:"no-store"}).then(function(res){
-      return res.json().then(function(data){ return {ok:true, data:data, blind:false}; });
+      return res.json().then(function(data){
+        // A parseable response proves the speaker is reachable even if it
+        // then rejects the specific command (response_code !== 0) — those
+        // are two different things and shouldn't both flip us to "disconnected".
+        noteConnection(true);
+        if(typeof data.response_code === "number" && data.response_code !== 0){
+          return {ok:false, reason:"device", responseCode:data.response_code, data:data, blind:false};
+        }
+        return {ok:true, data:data, blind:false};
+      });
     }).catch(function(){
       return fetch(url, {mode:"no-cors", cache:"no-store"}).then(function(){
+        noteConnection(true);
         return {ok:true, blind:true};
-      }).catch(function(err){ return {ok:false, reason:"network", error:err}; });
-    }).then(function(r){
-      noteConnection(r.ok);
-      return r;
+      }).catch(function(err){
+        noteConnection(false);
+        return {ok:false, reason:"network", error:err};
+      });
     });
   }
 
@@ -941,6 +951,8 @@
     if(!r.ok){
       if(r.reason === "no-ip"){
         log("Open Settings and enter a speaker IP first.", "warn");
+      } else if(r.reason === "device"){
+        log(label + " rejected by speaker (response_code " + r.responseCode + ").", "bad");
       } else {
         log(label + " failed — speaker unreachable at this address.", "bad");
       }
@@ -1070,6 +1082,15 @@
     });
   }
 
+  function delay(ms){
+    return new Promise(function(resolve){ setTimeout(resolve, ms); });
+  }
+
+  // Many receivers, this one included, ignore or reject commands sent in
+  // the first moment after setPower?power=on while they're still waking
+  // up — give it a beat before setting the power-on volume.
+  var POWER_ON_SETTLE_MS = 1000;
+
   function setVolumeAbsolute(targetPct){
     var raw = Math.max(0, Math.min(maxVol(), Math.round(maxVol() * targetPct / 100)));
     return mcRequest("main/setVolume?volume=" + raw).then(function(r){
@@ -1096,7 +1117,7 @@
       // controls sit "enabled" while the app also says "Not connected",
       // which is a contradiction the UI shouldn't show.
       if(!r.ok) setPowerVisual(wasOn);
-      else if(on) setVolumeAbsolute(powerOnVolPct()).then(refreshStatus);
+      else if(on) delay(POWER_ON_SETTLE_MS).then(function(){ return setVolumeAbsolute(powerOnVolPct()); }).then(refreshStatus);
     });
   }
   powerBtn.addEventListener("click", function(){ goPower(!isOn); });
@@ -1213,7 +1234,7 @@
       return mcRequest("main/setPower?power=on").then(function(powerResult){
         describeResult(powerResult, "Power on");
         if(!powerResult.ok) return null;
-        return setVolumeAbsolute(powerOnVolPct()).then(function(){
+        return delay(POWER_ON_SETTLE_MS).then(function(){ return setVolumeAbsolute(powerOnVolPct()); }).then(function(){
           return mcRequest("main/setInput?input=" + encodeURIComponent(id)).then(function(inputResult){
             describeResult(inputResult, "Source → " + id);
             if(inputResult.ok) highlightActiveInput(id);
