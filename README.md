@@ -30,7 +30,13 @@ The hosted copy at `https://umilan.github.io/yama-remo/` **cannot control your s
 
 Downloading the file and opening it locally works in principle, but is clunky on a phone — there's no simple double-click, and iOS in particular makes opening a local HTML file awkward. The practical fix is to host the file over **plain HTTP** on something that's always on and already on your LAN, so the phone's browser talks HTTP-to-HTTP with nothing to block:
 
-- **Already have a Synology or QNAP NAS?** Turn on its built-in web server (Synology: Package Center → Web Station; QNAP: App Center → Web Server), drop `musiccast-remote.html` into its web root, and open `http://<nas-ip>/musiccast-remote.html` from your phone.
+- **Synology NAS:**
+  1. Log into DSM, open **Package Center**, search for **Web Station**, and install it (this sets up a lightweight web server and creates a `web` shared folder).
+  2. Open the **Web Station** app once installed — on DSM 7 confirm there's a Web Service Portal bound to HTTP port 80 with its document root set to the `web` shared folder (this exists by default); on DSM 6 it serves `web` on port 80 automatically, no extra config needed.
+  3. Open **File Station** and copy `musiccast-remote.html` into that `web` shared folder.
+  4. Find the NAS's LAN IP (Control Panel → Network → Network Interface — it's the same IP you use to reach DSM).
+  5. From your phone, on the same Wi-Fi, open `http://<nas-ip>/musiccast-remote.html` and add it to your home screen. If port 80 is already taken by something else on the NAS, use whatever port the Web Station portal is actually bound to instead (`http://<nas-ip>:<port>/musiccast-remote.html`).
+- **QNAP NAS:** App Center → Web Server, drop `musiccast-remote.html` into its web root, and open `http://<nas-ip>/musiccast-remote.html` from your phone.
 - **Anything else** (Raspberry Pi, an always-on Mac/PC, a router with USB storage, etc.) — from the folder containing the file, run:
   ```
   python3 -m http.server 8080
