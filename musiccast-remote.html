@@ -6,19 +6,45 @@
 <title>MusiCast Remote</title>
 <script src="https://unpkg.com/lucide@latest"></script>
 <style>
+  /* Reduced, deliberate palette: black (or white, in dark mode) at three
+     opacities — 100% for text/headings, 50% for secondary/inactive text,
+     10% for backgrounds and hover states — plus one accent color for the
+     volume dial and selection states. No gradients, no separate status
+     colors (danger/warn/ok), no extra grays. --shadow-color is the one
+     exception: a plain black blur for elevation, not a color choice. */
   :root{
     color-scheme: dark;
     --bg:#000000;
     --fg:#ffffff;
-    --fg-dim:#57575a;
-    --fg-muted:#8a8a8e;
-    --track:#2c2c2e;
-    --accent:#ff2ec4;
-    --accent-2:#c400ff;
-    --active-bg:rgba(255,46,196,0.14);
-    --active-border:#ff2ec4;
-    --danger:#ff4d4d;
+    --fg-muted:#808080;
+    --surface:#1a1a1a;
+    --accent:#c400ff;
+    --active-bg:rgba(196,0,255,0.16);
+    --shadow-color:rgba(0,0,0,0.5);
+    --select-chevron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23808080' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
     --pad24:24px;
+    --headfont:24px;
+  }
+  /* "System" theme mode: only override when the OS itself prefers light —
+     otherwise the dark :root defaults above already apply. */
+  @media (prefers-color-scheme: light){
+    :root[data-theme="system"]{
+      color-scheme: light;
+      --bg:#ffffff;
+      --fg:#000000;
+      --fg-muted:#808080;
+      --surface:#e6e6e6;
+      --active-bg:rgba(196,0,255,0.12);
+    }
+  }
+  /* Explicit "Light" theme mode: forced regardless of OS preference. */
+  :root[data-theme="light"]{
+    color-scheme: light;
+    --bg:#ffffff;
+    --fg:#000000;
+    --fg-muted:#808080;
+    --surface:#e6e6e6;
+    --active-bg:rgba(196,0,255,0.12);
   }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   body{
@@ -33,6 +59,7 @@
   }
   .content{
     width:100%;
+    min-width:0;
     display:flex;
     flex-direction:column;
     min-height:calc(100vh - (var(--pad24) * 2));
@@ -62,7 +89,7 @@
     border:none;
     color:var(--fg);
     font-family:inherit;
-    font-size:19px;
+    font-size:var(--headfont);
     font-weight:700;
     padding:8px 10px;
     border-radius:10px;
@@ -79,7 +106,7 @@
     white-space:nowrap;
   }
   .source-name-btn svg{ width:18px; height:18px; flex:none; }
-  .source-name-btn:hover{ background:rgba(255,255,255,0.1); }
+  .source-name-btn:hover{ background:var(--surface); }
   .source-dropdown{
     position:absolute;
     top:100%;
@@ -92,11 +119,11 @@
     min-width:180px;
     max-height:280px;
     overflow-y:auto;
-    background:#111113;
-    border:1px solid #2c2c2e;
+    background:var(--surface);
+    border:1px solid var(--surface);
     border-radius:14px;
     padding:6px;
-    box-shadow:0 12px 32px rgba(0,0,0,0.5);
+    box-shadow:0 12px 32px var(--shadow-color);
     z-index:12;
   }
   .source-dropdown.open{ display:flex; }
@@ -112,9 +139,9 @@
     border-radius:10px;
     cursor:pointer;
   }
-  .source-dropdown-item:hover{ background:rgba(255,255,255,0.08); }
+  .source-dropdown-item:hover{ background:var(--surface); }
   .source-dropdown-item.active{ background:var(--active-bg); color:var(--accent); }
-  .content.powered-off .source-dropdown-item.active{ background:none; color:var(--fg-dim); }
+  .content.powered-off .source-dropdown-item.active{ background:none; color:var(--fg-muted); }
   .icon-btn{
     background:none;
     border:none;
@@ -148,7 +175,7 @@
     white-space:nowrap;
     letter-spacing:0.01em;
   }
-  .icon-btn:hover .icon-circle{ background:rgba(255,255,255,0.25); cursor:pointer; }
+  .icon-btn:hover .icon-circle{ background:var(--surface); cursor:pointer; }
   .icon-btn:active .icon-circle{ transform:scale(0.94); }
   .icon-btn.active .icon-circle{
     background:var(--active-bg);
@@ -171,7 +198,6 @@
     flex:0 0 48px;
   }
   .vol-step .icon-label{ white-space:normal; text-align:center; max-width:68px; }
-  .button-symbol{ font-size:30px; font-weight:300; line-height:1; }
   .gauge-wrap{
     position:relative;
     flex:1;
@@ -187,7 +213,7 @@
     transform:translate(-50%,-50%);
     border-radius:50%;
     overflow:hidden;
-    background:linear-gradient(150deg, #2a49a8 0%, #17204f 55%, #090b1c 100%);
+    background:var(--surface);
     display:flex;
     align-items:center;
     justify-content:center;
@@ -200,7 +226,7 @@
   .art-placeholder{
     position:absolute;
     inset:0;
-    color:rgba(255,255,255,1);
+    color:var(--fg);
     display:flex;
     flex-direction:column;
     align-items:center;
@@ -217,7 +243,7 @@
     align-items:center;
     justify-content:center;
     background:rgba(0,0,0,0.6);
-    color:var(--fg-dim);
+    color:var(--fg-muted);
     font-size:15px;
     font-weight:800;
     letter-spacing:0.08em;
@@ -235,7 +261,7 @@
     transition:opacity 0.35s ease;
   }
   .vol-overlay.show{ opacity:1; }
-  #volOverlayPct{ font-size:34px; font-weight:800; letter-spacing:0.01em; }
+  #volOverlayPct{ font-size:var(--headfont); font-weight:800; letter-spacing:0.01em; }
   .vol-overlay-label{ font-size:14px; font-weight:600; opacity:0.75; margin-top:2px; }
 
   /* Now playing info + transport */
@@ -245,7 +271,6 @@
     justify-content:space-between;
     gap:var(--pad24);
     margin-top:var(--pad24);
-    margin-bottom:var(--pad24);
   }
   .now-info > .icon-btn{ width:auto; flex:none; }
   .now-text{ flex:1; min-width:0; cursor:pointer; text-align:center; }
@@ -262,11 +287,11 @@
     display:none;
     align-items:center;
     gap:10px;
-    background:#111113;
-    border:1px solid #2c2c2e;
+    background:var(--surface);
+    border:1px solid var(--surface);
     border-radius:14px;
     padding:10px 12px;
-    box-shadow:0 12px 32px rgba(0,0,0,0.5);
+    box-shadow:0 12px 32px var(--shadow-color);
     z-index:12;
     white-space:nowrap;
   }
@@ -282,7 +307,7 @@
     flex:none;
   }
   .balance-nav-btn svg{ width:18px; height:18px; }
-  .balance-nav-btn:hover{ background:rgba(255,255,255,0.15); }
+  .balance-nav-btn:hover{ background:var(--surface); }
   .balance-value{ font-size:16px; font-weight:700; min-width:24px; text-align:center; }
   .balance-reset-btn{
     background:none;
@@ -295,12 +320,12 @@
     letter-spacing:0.05em;
     cursor:pointer;
     padding:4px 6px;
-    border-left:1px solid #2c2c2e;
+    border-left:1px solid var(--surface);
     margin-left:2px;
   }
   .balance-reset-btn:hover{ color:var(--fg); }
   .now-title{
-    font-size:24px;
+    font-size:var(--headfont);
     font-weight:800;
     letter-spacing:-0.01em;
     white-space:nowrap;
@@ -317,14 +342,14 @@
     margin-top:2px;
   }
 
-  .content.powered-off .icon-btn:not(.power):not(.settings):not([data-input]){ color:var(--fg-dim); pointer-events:none; }
+  .content.powered-off .icon-btn:not(.power):not(.settings):not([data-input]){ color:var(--fg-muted); pointer-events:none; }
   .content.powered-off .icon-btn.active .icon-circle{ background:none; border-color:transparent; }
-  .content.powered-off .icon-btn.active .icon-label{ color:var(--fg-dim); }
-  .content.powered-off .vol-step{ color:var(--fg-dim); pointer-events:none; }
-  .content.powered-off .now-info .icon-btn{ color:var(--fg-dim); pointer-events:none; }
-  .content.powered-off .now-title, .content.powered-off .now-artist{ color:var(--fg-dim); }
+  .content.powered-off .icon-btn.active .icon-label{ color:var(--fg-muted); }
+  .content.powered-off .vol-step{ color:var(--fg-muted); pointer-events:none; }
+  .content.powered-off .now-info .icon-btn{ color:var(--fg-muted); pointer-events:none; }
+  .content.powered-off .now-title, .content.powered-off .now-artist{ color:var(--fg-muted); }
   .content.powered-off #progressArc{ opacity:0; }
-  .content.powered-off #trackArc{ stroke:#242426; }
+  .content.powered-off #trackArc{ stroke:var(--bg); }
   .content.powered-off .art-circle{ filter:grayscale(1) brightness(0.35); }
   .content.powered-off .off-overlay{ display:flex; }
 
@@ -366,7 +391,7 @@
     width:min(70vw, 60vh, 340px);
     aspect-ratio:1/1;
     border-radius:50%;
-    background:#151517;
+    background:var(--surface);
     border:none;
     color:var(--fg);
     display:flex;
@@ -378,7 +403,7 @@
     font-family:inherit;
     padding:24px;
   }
-  .connect-circle:hover{ background:#1c1c1e; }
+  .connect-circle:hover{ background:var(--surface); }
   .connect-circle:active{ transform:scale(0.98); }
   .connect-ip-input{
     background:none;
@@ -393,7 +418,7 @@
     padding:0;
   }
   .connect-ip-input:focus{ outline:none; }
-  .connect-ip-input::placeholder{ color:var(--fg-dim); }
+  .connect-ip-input::placeholder{ color:var(--fg-muted); }
   .connect-ip-label{ font-size:14px; color:var(--fg-muted); }
   .connect-refresh{
     background:none;
@@ -423,7 +448,7 @@
     left:0; right:0; bottom:0;
     max-height:86vh;
     overflow-y:auto;
-    background:#111113;
+    background:var(--surface);
     border-radius:24px 24px 0 0;
     padding:24px 24px calc(24px + env(safe-area-inset-bottom));
     transform:translateY(100%);
@@ -432,7 +457,7 @@
     display:flex;
     flex-direction:column;
     gap:24px;
-    border-top:1px solid #2c2c2e;
+    border-top:1px solid var(--surface);
   }
   .drawer.open{ transform:translateY(0); }
   .drawer h2{
@@ -445,27 +470,33 @@
   }
   .drawer-handle{
     width:36px; height:4px; border-radius:2px;
-    background:#3a3a3c;
+    background:var(--surface);
     margin:0 auto 4px;
   }
   .drawer-head{
     display:grid;
     grid-template-columns:40px 1fr 40px;
     align-items:center;
+    position:sticky;
+    top:0;
+    background:var(--surface);
+    z-index:1;
+    padding:8px 0;
+    margin-top:-8px;
   }
   .drawer-head strong{ grid-column:2; text-align:center; font-size:22px; font-weight:800; }
   .drawer-close{
     grid-column:3; justify-self:end;
     width:40px; height:40px;
     border-radius:50%;
-    background:rgba(255,255,255,0.08);
+    background:var(--surface);
     border:none;
     color:var(--fg);
     display:flex; align-items:center; justify-content:center;
     cursor:pointer;
   }
   .drawer-close svg{ width:20px; height:20px; }
-  .drawer-close:hover{ background:rgba(255,255,255,0.15); }
+  .drawer-close:hover{ background:var(--surface); }
   .settings-row{
     display:flex;
     align-items:center;
@@ -474,11 +505,12 @@
   }
   .settings-row label{ font-size:17px; color:var(--fg-muted); font-weight:500; }
   .settings-row-control{ display:flex; align-items:center; gap:8px; }
+  input[type="checkbox"]{ width:22px; height:22px; accent-color:var(--accent); }
   input[type="text"]{
     padding:14px 16px;
     border-radius:12px;
-    border:1px solid #2c2c2e;
-    background:#1c1c1e;
+    border:1px solid var(--surface);
+    background:var(--surface);
     color:var(--fg);
     font-size:17px;
     font-weight:600;
@@ -491,9 +523,9 @@
     -webkit-appearance:none; appearance:none;
     padding:14px 36px 14px 16px;
     border-radius:12px;
-    border:1px solid #2c2c2e;
-    background-color:#1c1c1e;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    border:1px solid var(--surface);
+    background-color:var(--surface);
+    background-image:var(--select-chevron);
     background-repeat:no-repeat;
     background-position:right 12px center;
     background-size:16px;
@@ -508,15 +540,15 @@
     width:52px; height:52px;
     flex:none;
     border-radius:12px;
-    background:#1c1c1e;
+    background:var(--surface);
     border:none;
-    color:var(--fg-dim);
+    color:var(--fg-muted);
     display:flex; align-items:center; justify-content:center;
     cursor:pointer;
   }
   .ip-confirm svg{ width:22px; height:22px; }
   .ip-confirm:hover{ opacity:0.85; }
-  .ip-confirm.connected{ background:#0f3d24; color:#34c759; }
+  .ip-confirm.connected{ background:var(--surface); color:var(--accent); }
   .settings-actions{
     display:flex;
     flex-direction:column;
@@ -533,6 +565,7 @@
     font-weight:800;
     letter-spacing:0.08em;
     text-transform:uppercase;
+    text-decoration:none;
     cursor:pointer;
     padding:4px 8px;
   }
@@ -543,9 +576,204 @@
     font-size:12px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
     max-height:140px; overflow-y:auto; color:var(--fg-muted);
   }
-  .log-entry.bad{ color:var(--danger); }
-  .log-entry.warn{ color:#e6a41c; }
-  .log-entry.ok{ color:#34c759; }
+  .log-entry.bad{ color:var(--fg); }
+  .log-entry.ok{ color:var(--accent); }
+
+  /* Device features screen (full list from system/getFeatures) */
+  .features-screen{
+    position:fixed; inset:0;
+    background:var(--bg);
+    z-index:20;
+    display:flex;
+    flex-direction:column;
+    padding:var(--pad24) var(--pad24) calc(var(--pad24) + env(safe-area-inset-bottom));
+    gap:16px;
+    overflow-y:auto;
+  }
+  .features-screen[hidden]{ display:none; }
+  .features-status{
+    font-size:13px;
+    font-weight:600;
+    padding:10px 14px;
+    border-radius:10px;
+    background:var(--surface);
+    color:var(--fg-muted);
+  }
+  .features-status[hidden]{ display:none; }
+  .features-status.ok{ color:var(--accent); }
+  .features-status.bad{ color:var(--fg); }
+  .features-body{ display:flex; flex-direction:column; gap:20px; }
+  .feature-section h3{
+    font-size:12px; text-transform:uppercase; letter-spacing:0.06em;
+    color:var(--fg-muted); margin:0 0 10px; font-weight:700;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  .feature-btn-row{ display:flex; flex-wrap:wrap; gap:8px; }
+  .feature-btn{
+    background:var(--surface); border:1px solid var(--surface); color:var(--fg);
+    font-family:inherit; font-size:14px; font-weight:600;
+    padding:10px 16px; border-radius:12px; cursor:pointer;
+  }
+  .feature-btn:hover{ background:var(--surface); }
+  .feature-btn:active{ transform:scale(0.96); }
+  .feature-chip-row{ display:flex; flex-wrap:wrap; gap:6px; }
+  .feature-chip{
+    background:var(--surface); border:1px solid var(--surface); color:var(--fg-muted);
+    font-size:12px; padding:5px 10px; border-radius:8px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  .feature-info-row{
+    font-size:12px; color:var(--fg-muted);
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    padding:4px 0; word-break:break-all;
+  }
+
+  /* ---------- "Txt-in-middle" layout (alternate to the radial dial) ---------- */
+  .layout-txt{ display:none; }
+  #content[data-layout="txt-in-middle"] > .topbar,
+  #content[data-layout="txt-in-middle"] > .now-row,
+  #content[data-layout="txt-in-middle"] > .now-info{ display:none; }
+  #content[data-layout="txt-in-middle"] > .layout-txt{
+    display:flex;
+    flex-direction:column;
+    flex:1;
+    min-height:0;
+    min-width:0;
+  }
+  .content.disconnected > .layout-txt{ display:none; }
+
+  .txt-topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    width:100%;
+    margin-bottom:var(--pad24);
+  }
+  .txt-topbar .icon-btn{ width:auto; flex:0 0 auto; }
+  .txt-source-tabs{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:16px;
+    flex:1;
+    min-width:0;
+    overflow-x:auto;
+  }
+  .txt-source-tab{
+    background:none;
+    border:none;
+    color:var(--fg-muted);
+    font-family:inherit;
+    font-size:15px;
+    font-weight:700;
+    padding:16px;
+    cursor:pointer;
+    white-space:nowrap;
+    flex:none;
+  }
+  .txt-source-tab.active{ color:var(--fg); }
+
+  .txt-middle{
+    flex:1;
+    min-height:0;
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:0 8px;
+  }
+  .txt-now{ width:100%; max-width:100%; min-width:0; }
+  .txt-artist{
+    font-size:28px;
+    font-weight:800;
+    letter-spacing:-0.01em;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .txt-track{
+    font-size:22px;
+    font-weight:800;
+    color:var(--fg-muted);
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    margin-top:4px;
+  }
+  .txt-source-big{
+    font-size:40px;
+    font-weight:800;
+    letter-spacing:-0.01em;
+  }
+
+  .txt-controls{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:8px;
+    margin-bottom:var(--pad24);
+    min-width:0;
+  }
+  .txt-controls[hidden]{ display:none; }
+  .txt-controls .icon-btn{ flex:1 1 0; min-width:0; width:auto; }
+  .txt-controls-lineinfo{ justify-content:center; }
+  .txt-controls-lineinfo .icon-btn{ flex:none; }
+
+  .txt-volume-row{
+    display:flex;
+    align-items:center;
+    gap:16px;
+    min-width:0;
+  }
+  .txt-volume-wrap{
+    position:relative;
+    flex:1;
+    min-width:0;
+  }
+  .txt-volume-value{
+    position:absolute;
+    bottom:100%;
+    left:50%;
+    transform:translateX(-50%);
+    margin-bottom:8px;
+    background:var(--surface);
+    color:var(--fg);
+    font-size:14px;
+    font-weight:800;
+    padding:4px 10px;
+    border-radius:8px;
+    white-space:nowrap;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity 0.15s ease;
+  }
+  .txt-volume-value.show{ opacity:1; }
+  .txt-volume-bar{
+    flex:1;
+    display:flex;
+    align-items:center;
+    gap:1px;
+    height:20px;
+    min-width:0;
+    cursor:pointer;
+  }
+  .txt-volume-tick{
+    flex:1;
+    height:14px;
+    border-radius:1px;
+    background:var(--surface);
+  }
+  .txt-volume-tick.filled{ background:var(--fg); }
+
+  .content.powered-off .txt-source-tab{ color:var(--fg-muted); pointer-events:none; }
+  .content.powered-off .txt-controls .icon-btn,
+  .content.powered-off .txt-volume-row .vol-step,
+  .content.powered-off .txt-volume-bar{ color:var(--fg-muted); pointer-events:none; }
+  .content.powered-off .txt-artist,
+  .content.powered-off .txt-track,
+  .content.powered-off .txt-source-big{ color:var(--fg-muted); }
 </style>
 </head>
 <body>
@@ -588,19 +816,13 @@
 
   <div class="now-row">
     <button class="icon-btn vol-step" id="volDownBtn" aria-label="Volume down">
-      <span class="icon-circle"><span class="button-symbol">−</span></span>
+      <span class="icon-circle"></span>
       <span class="icon-label">Volume down</span>
     </button>
     <div class="gauge-wrap">
-      <svg viewBox="0 0 300 300">
-        <path id="trackArc" fill="none" stroke="var(--track)" stroke-width="22" stroke-linecap="round"/>
-        <defs>
-          <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="var(--accent)"/>
-            <stop offset="100%" stop-color="var(--accent-2)"/>
-          </linearGradient>
-        </defs>
-        <path id="progressArc" fill="none" stroke="url(#grad)" stroke-width="22" stroke-linecap="round"/>
+      <svg id="gaugeSvg" viewBox="0 0 300 300">
+        <path id="trackArc" fill="none" stroke="var(--surface)" stroke-width="8" stroke-linecap="round"/>
+        <path id="progressArc" fill="none" stroke="var(--accent)" stroke-width="8" stroke-linecap="round"/>
       </svg>
       <div class="art-circle" id="artCircle">
         <img id="albumArt" alt="" hidden>
@@ -613,14 +835,14 @@
       </div>
     </div>
     <button class="icon-btn vol-step" id="volUpBtn" aria-label="Volume up">
-      <span class="icon-circle"><span class="button-symbol">+</span></span>
+      <span class="icon-circle"></span>
       <span class="icon-label">Volume up</span>
     </button>
   </div>
 
   <div class="now-info" id="nowInfo">
     <button class="icon-btn transport-control" id="prevBtn" aria-label="Previous track">
-      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="19 4 9 12 19 20" fill="currentColor" stroke="none"/><line x1="5" y1="5" x2="5" y2="19"/></svg></span>
+      <span class="icon-circle"></span>
       <span class="icon-label">Previous</span>
     </button>
     <div class="now-text transport-control">
@@ -628,7 +850,7 @@
       <div class="now-artist" id="trackArtist" style="display:none;"></div>
     </div>
     <button class="icon-btn transport-control" id="nextBtn" aria-label="Next track">
-      <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20" fill="currentColor" stroke="none"/><line x1="19" y1="5" x2="19" y2="19"/></svg></span>
+      <span class="icon-circle"></span>
       <span class="icon-label">Next</span>
     </button>
 
@@ -654,6 +876,74 @@
     </button>
   </div>
 
+  <!-- Alternate "txt-in-middle" layout — same state, different presentation.
+       Shown instead of .topbar/.now-row/.now-info when Settings -> Layout
+       is set to Txt-in-middle; hidden (display:none) otherwise. -->
+  <div class="layout-txt" id="layoutTxt">
+    <div class="txt-topbar">
+      <button class="icon-btn power on" id="powerBtnTxt" aria-label="Power">
+        <span class="icon-circle"></span>
+      </button>
+      <div class="txt-source-tabs" id="txtSourceTabs"></div>
+      <button class="icon-btn settings" id="settingsBtnTxt" aria-label="Settings…" title="Settings…">
+        <span class="icon-circle"></span>
+      </button>
+    </div>
+
+    <div class="txt-middle">
+      <div class="txt-now" id="txtNow">
+        <div class="txt-artist" id="txtArtist">Not connected</div>
+        <div class="txt-track" id="txtTrack"></div>
+      </div>
+      <div class="txt-source-big" id="txtSourceBig" hidden></div>
+    </div>
+
+    <div class="txt-controls" id="txtControls">
+      <button class="icon-btn" id="prevBtnTxt" aria-label="Previous">
+        <span class="icon-circle"></span>
+        <span class="icon-label">Prev</span>
+      </button>
+      <button class="icon-btn" id="shuffleBtnTxt" aria-label="Shuffle">
+        <span class="icon-circle"></span>
+        <span class="icon-label">Shuffle</span>
+      </button>
+      <button class="icon-btn" id="playPauseBtnTxt" aria-label="Play/Pause">
+        <span class="icon-circle"></span>
+        <span class="icon-label" id="playPauseLabelTxt">Pause</span>
+      </button>
+      <button class="icon-btn" id="repeatBtnTxt" aria-label="Repeat">
+        <span class="icon-circle"></span>
+        <span class="icon-label">Repeat</span>
+      </button>
+      <button class="icon-btn" id="nextBtnTxt" aria-label="Next">
+        <span class="icon-circle"></span>
+        <span class="icon-label">Next</span>
+      </button>
+    </div>
+
+    <div class="txt-controls txt-controls-lineinfo" id="txtLineControls" hidden>
+      <button class="icon-btn" id="muteBtnTxt" aria-label="Mute">
+        <span class="icon-circle"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor" stroke="none"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg></span>
+        <span class="icon-label" id="muteLabelTxt">Mute</span>
+      </button>
+    </div>
+
+    <div class="txt-volume-row">
+      <button class="icon-btn vol-step" id="volDownBtnTxt" aria-label="Volume down">
+        <span class="icon-circle"></span>
+        <span class="icon-label">Volume down</span>
+      </button>
+      <div class="txt-volume-wrap" id="txtVolumeWrap">
+        <div class="txt-volume-value" id="txtVolumeValue">0</div>
+        <div class="txt-volume-bar" id="txtVolumeBar"></div>
+      </div>
+      <button class="icon-btn vol-step" id="volUpBtnTxt" aria-label="Volume up">
+        <span class="icon-circle"></span>
+        <span class="icon-label">Volume up</span>
+      </button>
+    </div>
+  </div>
+
 </div>
 
 <div class="backdrop" id="backdrop"></div>
@@ -664,6 +954,23 @@
     <button class="drawer-close" id="drawerClose" aria-label="Close settings" title="Close">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
+  </div>
+
+  <div class="settings-row">
+    <label for="themeSelect">Theme</label>
+    <select id="themeSelect">
+      <option value="dark">Dark</option>
+      <option value="light">Light</option>
+      <option value="system" selected>System</option>
+    </select>
+  </div>
+
+  <div class="settings-row">
+    <label for="layoutSelect">Layout</label>
+    <select id="layoutSelect">
+      <option value="radial" selected>Radial</option>
+      <option value="txt-in-middle">Txt-in-middle</option>
+    </select>
   </div>
 
   <div class="settings-row">
@@ -714,6 +1021,11 @@
     </select>
   </div>
 
+  <div class="settings-row">
+    <label for="rememberLastStateSelect">Remember last state on power-on</label>
+    <input type="checkbox" id="rememberLastStateSelect">
+  </div>
+
   <div class="settings-actions">
     <button id="testConnectionBtn" class="settings-action" type="button">Test connection</button>
     <button id="resetDefaultsBtn" class="settings-action" type="button">Reset to defaults</button>
@@ -721,9 +1033,26 @@
     <button id="showLogBtn" class="settings-action muted" type="button">Show log…</button>
   </div>
 
+  <h2>Advanced</h2>
+  <div class="settings-actions">
+    <button id="getFeaturesBtn" class="settings-action" type="button">Get device features</button>
+    <a id="openAppLink" class="settings-action" href="jp.co.yamaha.avkk.musiccastcontroller://">Open MusicCast app</a>
+  </div>
+
   <div id="logWrap" hidden>
     <div id="log" class="log"><div class="log-entry">Ready.</div></div>
   </div>
+</div>
+
+<div class="features-screen" id="featuresScreen" hidden role="dialog" aria-label="Device features">
+  <div class="drawer-head">
+    <strong>Device Features</strong>
+    <button class="drawer-close" id="featuresCloseBtn" type="button" aria-label="Close" title="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="features-status" id="featuresStatus" hidden></div>
+  <div class="features-body" id="featuresBody"></div>
 </div>
 
 <script>
@@ -731,16 +1060,24 @@
   "use strict";
 
   var content = document.getElementById("content");
+  var themeSelect = document.getElementById("themeSelect");
+  var layoutSelect = document.getElementById("layoutSelect");
   var ipInput = document.getElementById("ipInput");
   var ipConfirmBtn = document.getElementById("ipConfirmBtn");
   var speakersSelect = document.getElementById("speakersSelect");
   var volLimitSelect = document.getElementById("volLimitSelect");
   var volIncrementSelect = document.getElementById("volIncrementSelect");
   var powerOnVolSelect = document.getElementById("powerOnVolSelect");
+  var rememberLastStateSelect = document.getElementById("rememberLastStateSelect");
   var testConnectionBtn = document.getElementById("testConnectionBtn");
   var resetDefaultsBtn = document.getElementById("resetDefaultsBtn");
   var closeSettingsBtn = document.getElementById("closeSettingsBtn");
   var showLogBtn = document.getElementById("showLogBtn");
+  var getFeaturesBtn = document.getElementById("getFeaturesBtn");
+  var featuresScreen = document.getElementById("featuresScreen");
+  var featuresStatus = document.getElementById("featuresStatus");
+  var featuresBody = document.getElementById("featuresBody");
+  var featuresCloseBtn = document.getElementById("featuresCloseBtn");
   var logWrap = document.getElementById("logWrap");
   var powerBtn = document.getElementById("powerBtn");
   var powerLabel = document.getElementById("powerLabel");
@@ -749,6 +1086,7 @@
   var prevBtn = document.getElementById("prevBtn");
   var nextBtn = document.getElementById("nextBtn");
   var logEl = document.getElementById("log");
+  var gaugeSvg = document.getElementById("gaugeSvg");
   var trackArc = document.getElementById("trackArc");
   var progressArc = document.getElementById("progressArc");
   var albumArt = document.getElementById("albumArt");
@@ -780,6 +1118,31 @@
   var muteBtn = document.getElementById("muteBtn");
   var muteLabel = document.getElementById("muteLabel");
 
+  // ---------- Txt-in-middle layout elements ----------
+  var layoutTxt = document.getElementById("layoutTxt");
+  var powerBtnTxt = document.getElementById("powerBtnTxt");
+  var settingsBtnTxt = document.getElementById("settingsBtnTxt");
+  var txtSourceTabs = document.getElementById("txtSourceTabs");
+  var txtNow = document.getElementById("txtNow");
+  var txtArtist = document.getElementById("txtArtist");
+  var txtTrack = document.getElementById("txtTrack");
+  var txtSourceBig = document.getElementById("txtSourceBig");
+  var txtControls = document.getElementById("txtControls");
+  var prevBtnTxt = document.getElementById("prevBtnTxt");
+  var shuffleBtnTxt = document.getElementById("shuffleBtnTxt");
+  var playPauseBtnTxt = document.getElementById("playPauseBtnTxt");
+  var playPauseLabelTxt = document.getElementById("playPauseLabelTxt");
+  var repeatBtnTxt = document.getElementById("repeatBtnTxt");
+  var nextBtnTxt = document.getElementById("nextBtnTxt");
+  var txtLineControls = document.getElementById("txtLineControls");
+  var muteBtnTxt = document.getElementById("muteBtnTxt");
+  var muteLabelTxt = document.getElementById("muteLabelTxt");
+  var volDownBtnTxt = document.getElementById("volDownBtnTxt");
+  var volUpBtnTxt = document.getElementById("volUpBtnTxt");
+  var txtVolumeWrap = document.getElementById("txtVolumeWrap");
+  var txtVolumeValue = document.getElementById("txtVolumeValue");
+  var txtVolumeBar = document.getElementById("txtVolumeBar");
+
   var isOn = true;
   var currentVolume = null;
   var lastKnownMute = null;
@@ -787,7 +1150,66 @@
   var BALANCE_MIN = -10;
   var BALANCE_MAX = 10;
   var activeInput = null;
+  // Only meaningful for the txt-in-middle layout's dedicated play/pause,
+  // shuffle and repeat buttons — the radial layout has no equivalent
+  // controls (play/pause is a tap gesture on the album art there).
+  var isPlaying = false;
+  var shuffleOn = false;
+  var repeatOn = false;
   var isConnected = false;
+  // Volume/source captured right before the speaker goes to standby, so
+  // "remember last state" can restore them on the next power-on instead of
+  // jumping to the fixed powerOnVolSteps() preset.
+  var lastVolumeBeforeOff = null;
+  var lastInputBeforeOff = null;
+
+  // ---------- Settings persistence (localStorage) ----------
+  var SETTINGS_STORAGE_KEY = "yama-remo-settings";
+  function loadSettings(){
+    try{
+      var raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    }catch(_){ return null; }
+  }
+  function saveSettings(){
+    try{
+      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({
+        theme: themeSelect.value,
+        layout: layoutSelect.value,
+        ip: currentIp(),
+        speaker: speakersSelect.value,
+        volLimit: volLimitSelect.value,
+        volIncrement: volIncrementSelect.value,
+        powerOnVol: powerOnVolSelect.value,
+        rememberLastState: rememberLastStateSelect.checked,
+        lastVolume: lastVolumeBeforeOff,
+        lastInput: lastInputBeforeOff
+      }));
+    }catch(_){ }
+  }
+  function applyRememberLastStateVisual(){
+    powerOnVolSelect.disabled = rememberLastStateSelect.checked;
+  }
+  // "dark"/"light" force that look regardless of OS preference; "system"
+  // clears the override so the (dark-by-default) CSS falls back to a
+  // prefers-color-scheme media query.
+  function applyTheme(value){
+    document.documentElement.setAttribute("data-theme", value);
+  }
+  themeSelect.addEventListener("change", function(){
+    applyTheme(themeSelect.value);
+    saveSettings();
+  });
+  // "content" carries data-layout so CSS can show/hide .topbar/.now-row/
+  // .now-info vs. .layout-txt — both read from the same underlying state
+  // (volume, source, playback), so switching layouts never loses sync.
+  function applyLayout(value){
+    content.setAttribute("data-layout", value);
+  }
+  layoutSelect.addEventListener("change", function(){
+    applyLayout(layoutSelect.value);
+    saveSettings();
+  });
   // ipInput (on the connect screen) is the canonical field currentIp()
   // reads; ipInputSettings just mirrors it so the IP is also editable
   // from Settings without disconnecting first.
@@ -812,7 +1234,19 @@
   replaceIcon(powerBtn.querySelector(".icon-circle"), "power");
   replaceIcon(settingsBtn.querySelector(".icon-circle"), "settings-2");
   replaceIcon(settingsBtnConnect.querySelector(".icon-circle"), "settings-2");
+  replaceIcon(prevBtn.querySelector(".icon-circle"), "skip-back");
   replaceIcon(nextBtn.querySelector(".icon-circle"), "skip-forward");
+  replaceIcon(volDownBtn.querySelector(".icon-circle"), "minus");
+  replaceIcon(volUpBtn.querySelector(".icon-circle"), "plus");
+  replaceIcon(powerBtnTxt.querySelector(".icon-circle"), "power");
+  replaceIcon(settingsBtnTxt.querySelector(".icon-circle"), "settings-2");
+  replaceIcon(prevBtnTxt.querySelector(".icon-circle"), "skip-back");
+  replaceIcon(shuffleBtnTxt.querySelector(".icon-circle"), "shuffle");
+  replaceIcon(repeatBtnTxt.querySelector(".icon-circle"), "repeat");
+  replaceIcon(nextBtnTxt.querySelector(".icon-circle"), "skip-forward");
+  replaceIcon(volDownBtnTxt.querySelector(".icon-circle"), "minus");
+  replaceIcon(volUpBtnTxt.querySelector(".icon-circle"), "plus");
+  updatePlayPauseIcon();
   lucide.createIcons();
 
   // Source dropdown, opened from the top bar's "AirPlay ⌄" label.
@@ -841,6 +1275,35 @@
     sourceDropdown.appendChild(item);
     sourceDropdownItems.push(item);
   });
+
+  // Compact source-tab row for the txt-in-middle layout — a curated subset
+  // (matches the layout mockup) rather than the full SOURCES list, so it
+  // fits as a single row of short labels instead of needing a dropdown.
+  // The rest of SOURCES stays reachable by switching back to Radial.
+  var TXT_TAB_SOURCES = [
+    { id: "aux", label: "Aux" },
+    { id: "airplay", label: "AirPlay" },
+    { id: "bluetooth", label: "BT" },
+    { id: "net_radio", label: "Radio" },
+    { id: "optical", label: "Opto" },
+    { id: "usb", label: "USB" }
+  ];
+  var txtSourceTabItems = [];
+  TXT_TAB_SOURCES.forEach(function(source){
+    var tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = "txt-source-tab";
+    tab.setAttribute("data-input", source.id);
+    tab.textContent = source.label;
+    tab.addEventListener("click", function(){ selectInput(source.id); });
+    txtSourceTabs.appendChild(tab);
+    txtSourceTabItems.push(tab);
+  });
+  function renderTxtSourceTabs(id){
+    txtSourceTabItems.forEach(function(tab){
+      tab.classList.toggle("active", tab.getAttribute("data-input") === id);
+    });
+  }
 
   function openSourceDropdown(){
     sourceDropdown.classList.add("open");
@@ -906,6 +1369,12 @@
   function volLimitSteps(){ return parseInt(volLimitSelect.value, 10) || NX500_VOLUME_STEPS; }
   function volIncrementSteps(){ return parseInt(volIncrementSelect.value, 10) || 1; }
   function powerOnVolSteps(){ return parseInt(powerOnVolSelect.value, 10) || 10; }
+  // When "remember last state" is on, restore the volume captured right
+  // before standby instead of jumping to the fixed power-on preset.
+  function resolvePowerOnVolume(){
+    if(rememberLastStateSelect.checked && typeof lastVolumeBeforeOff === "number") return lastVolumeBeforeOff;
+    return powerOnVolSteps();
+  }
   function maxVol(){ return NX500_VOLUME_STEPS; }
   function step(){ return volIncrementSteps(); }
 
@@ -918,10 +1387,51 @@
     var sweep = TOTAL_SWEEP * (Math.max(0, Math.min(100, p)) / 100);
     progressArc.setAttribute("d", describeArc(CX, CY, R, START_ANGLE, START_ANGLE + sweep));
   }
+  // One dot per raw volume step (0-100 on the NX500), so clicking a given
+  // dot maps to an exact step rather than an approximate percentage.
+  var TXT_VOLUME_TICK_COUNT = NX500_VOLUME_STEPS;
+  var txtVolumeTicks = [];
+  for(var tvi = 0; tvi < TXT_VOLUME_TICK_COUNT; tvi++){
+    var tick = document.createElement("div");
+    tick.className = "txt-volume-tick";
+    txtVolumeBar.appendChild(tick);
+    txtVolumeTicks.push(tick);
+  }
+  function updateTxtVolumeBar(p){
+    var filled = Math.round((Math.max(0, Math.min(100, p)) / 100) * TXT_VOLUME_TICK_COUNT);
+    txtVolumeTicks.forEach(function(t, i){ t.classList.toggle("filled", i < filled); });
+  }
+  var TXT_VOLUME_VALUE_DISMISS_MS = 3000;
+  var txtVolumeValueTimer = null;
+  function showTxtVolumeValueBriefly(){
+    txtVolumeValue.textContent = Math.round(pct());
+    txtVolumeValue.classList.add("show");
+    clearTimeout(txtVolumeValueTimer);
+    txtVolumeValueTimer = setTimeout(function(){
+      txtVolumeValue.classList.remove("show");
+    }, TXT_VOLUME_VALUE_DISMISS_MS);
+  }
+  // Click/tap directly on the dashed line jumps volume to that exact step —
+  // the linear counterpart to the radial layout's click-on-the-ring gauge.
+  function volumeStepsFromBarClick(clientX){
+    var rect = txtVolumeBar.getBoundingClientRect();
+    if(!rect.width) return null;
+    var ratio = (clientX - rect.left) / rect.width;
+    return Math.round(Math.max(0, Math.min(1, ratio)) * NX500_VOLUME_STEPS);
+  }
+  txtVolumeBar.addEventListener("click", function(e){
+    if(!isOn) return;
+    var steps = volumeStepsFromBarClick(e.clientX);
+    if(steps == null) return;
+    setVolumeAbsolute(steps).then(function(r){
+      if(r.ok) showVolumeOverlay();
+    });
+  });
   function setVolumeOverlayText(p){
     var rounded = Math.round(p);
     volOverlayPct.textContent = rounded;
     placeholderVolume.textContent = rounded;
+    updateTxtVolumeBar(p);
   }
   function updateGauge(){
     var p = pct();
@@ -937,6 +1447,7 @@
     volOverlayTimer = setTimeout(function(){
       volOverlay.classList.remove("show");
     }, VOL_OVERLAY_DISMISS_MS);
+    showTxtVolumeValueBriefly();
   }
 
   var lastDisplayedPct = 0;
@@ -966,7 +1477,40 @@
     }
   }
 
-  var disableWhenOff = [volDownBtn, volUpBtn, prevBtn, nextBtn, balanceBtn, muteBtn];
+  // Clicking/tapping directly on the ring (track or progress arc) jumps the
+  // volume straight to that position, like a circular slider. A generous
+  // radius tolerance around R means it doesn't matter which of the two
+  // overlapping paths the click actually lands on, or that trackArc's
+  // stroke is much thinner than the hit target; clicks in the open gap at
+  // the bottom (not part of the swept arc) are ignored.
+  var ARC_CLICK_RADIUS_TOLERANCE = 40;
+  function volumeStepsFromArcClick(clientX, clientY){
+    var rect = gaugeSvg.getBoundingClientRect();
+    var svgX = (clientX - rect.left) / rect.width * 300;
+    var svgY = (clientY - rect.top) / rect.height * 300;
+    var dx = svgX - CX, dy = svgY - CY;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    if(Math.abs(dist - R) > ARC_CLICK_RADIUS_TOLERANCE) return null;
+    var deg = Math.atan2(dy, dx) * 180 / Math.PI + 90;
+    if(deg < 0) deg += 360;
+    var offset = deg - START_ANGLE;
+    if(offset < 0) offset += 360;
+    if(offset > TOTAL_SWEEP) return null;
+    return Math.round(Math.max(0, Math.min(100, (offset / TOTAL_SWEEP) * 100)));
+  }
+  gaugeSvg.addEventListener("click", function(e){
+    if(!isOn) return;
+    var steps = volumeStepsFromArcClick(e.clientX, e.clientY);
+    if(steps == null) return;
+    setVolumeAbsolute(steps).then(function(r){
+      if(r.ok) showVolumeOverlay();
+    });
+  });
+
+  var disableWhenOff = [
+    volDownBtn, volUpBtn, prevBtn, nextBtn, balanceBtn, muteBtn,
+    volDownBtnTxt, volUpBtnTxt, prevBtnTxt, nextBtnTxt, shuffleBtnTxt, repeatBtnTxt, playPauseBtnTxt, muteBtnTxt
+  ];
   function setPowerVisual(on){
     isOn = on;
     content.classList.toggle("powered-off", !on);
@@ -1006,13 +1550,31 @@
     }
   }
 
+  // If this page is being served by proxy.py (detected below), route YXC
+  // calls through its same-origin /yxc/<ip>/<path> relay instead of hitting
+  // the speaker directly — the proxy fetches server-side (no CORS
+  // enforcement applies there) and hands the JSON back same-origin, so the
+  // browser can actually read it. Opened as a plain file, or hosted by a
+  // static server with no proxy, this stays false and behaves as before.
+  var useProxy = false;
+  function detectProxy(){
+    if(location.protocol !== "http:" && location.protocol !== "https:") return Promise.resolve();
+    return fetch(location.origin + "/yxc-health", {cache:"no-store"}).then(function(res){
+      useProxy = res.ok;
+    }).catch(function(){ useProxy = false; });
+  }
+  function buildRequestUrl(ip, path){
+    if(useProxy) return location.origin + "/yxc/" + ip + "/" + path;
+    return "http://" + ip + "/YamahaExtendedControl/v1/" + path;
+  }
+
   function mcRequest(path){
     var ip = currentIp();
     if(!ip){
       noteConnection(false);
       return Promise.resolve({ok:false, reason:"no-ip"});
     }
-    var url = "http://" + ip + "/YamahaExtendedControl/v1/" + path;
+    var url = buildRequestUrl(ip, path);
     return fetch(url, {cache:"no-store"}).then(function(res){
       return res.json().then(function(data){
         // A parseable response proves the speaker is reachable even if it
@@ -1060,6 +1622,8 @@
       lastKnownMute = data.mute;
       muteLabel.textContent = data.mute ? "Unmute" : "Mute";
       muteBtn.classList.toggle("active", data.mute);
+      muteLabelTxt.textContent = data.mute ? "Unmute" : "Mute";
+      muteBtnTxt.classList.toggle("active", data.mute);
     }
     if(typeof data.input === "string"){
       highlightActiveInput(data.input);
@@ -1084,7 +1648,28 @@
         if(known && d.albumart_url){
           showAlbumArt("http://" + currentIp() + d.albumart_url);
         }
-        log("Now-playing info updated.", "ok");
+        isPlaying = d.playback === "play";
+        updatePlayPauseIcon();
+        // shuffle/repeat field names/values are per community documentation,
+        // not verified against a live device — if a real response uses
+        // different values, these just stay at their last-known state
+        // rather than breaking anything.
+        if(typeof d.shuffle === "string"){
+          shuffleOn = d.shuffle !== "off";
+          shuffleBtnTxt.classList.toggle("active", shuffleOn);
+        }
+        if(typeof d.repeat === "string"){
+          repeatOn = d.repeat !== "off";
+          repeatBtnTxt.classList.toggle("active", repeatOn);
+        }
+        // Temporary diagnostic: dumps the exact fields the speaker sent so a
+        // "Not playing" result that looks wrong (audible sound, no title) can
+        // be root-caused from the log instead of guessed at — some inputs
+        // (net radio in particular) use different fields/playback values
+        // than netusb/getPlayInfo's usual play/pause/track/artist shape.
+        log("Play info raw — input:" + d.input + " playback:" + JSON.stringify(d.playback) +
+          " track:" + JSON.stringify(d.track) + " artist:" + JSON.stringify(d.artist) +
+          " album:" + JSON.stringify(d.album), "warn");
       }
       // if blind or unreachable, just leave "Not playing" / the source icon placeholder in place — not worth logging noise here
     });
@@ -1093,26 +1678,44 @@
   function highlightActiveInput(id){
     activeInput = id;
     renderCompactSource(id);
+    renderTxtSourceTabs(id);
     var isLineIn = isLineInSource(id);
     nowInfo.classList.toggle("line-source", isLineIn);
     if(!isLineIn) closeBalancePopover();
+    txtNow.hidden = isLineIn;
+    txtSourceBig.hidden = !isLineIn;
+    txtControls.hidden = isLineIn;
+    txtLineControls.hidden = !isLineIn;
+    if(isLineIn){
+      var idx = -1;
+      for(var i = 0; i < SOURCES.length; i++){ if(SOURCES[i].id === id){ idx = i; break; } }
+      txtSourceBig.textContent = (idx >= 0 ? SOURCES[idx].label : (id || "")).toUpperCase();
+    }
   }
 
   function setNowPlaying(track, artist){
+    // txt-in-middle deliberately puts artist on the bold/primary line and
+    // track on the dim/secondary line (per its layout mockup) — the
+    // opposite emphasis from the radial layout's trackTitle/trackArtist.
     if(track){
       trackTitle.textContent = track;
       trackArtist.textContent = artist || "";
+      txtArtist.textContent = artist || "";
+      txtTrack.textContent = track;
     } else if(isConnected){
       trackTitle.textContent = "Not playing";
       trackArtist.textContent = "Connected";
+      txtArtist.textContent = "Not playing";
+      txtTrack.textContent = "Connected";
     } else {
       trackTitle.textContent = "Not connected";
       trackArtist.textContent = "";
+      txtArtist.textContent = "Not connected";
+      txtTrack.textContent = "";
     }
     trackArtist.style.display = trackArtist.textContent ? "" : "none";
+    txtTrack.style.display = txtTrack.textContent ? "" : "none";
   }
-
-  var connectingNow = false;
 
   function refreshStatus(){
     if(!currentIp()){
@@ -1128,7 +1731,6 @@
         setConnected(true);
         renderStatusData(r.data);
         log("Connected — status refreshed.", "ok");
-        fetchPlayInfo();
       } else if(r.ok && r.blind){
         setConnected(true);
         setNowPlaying(null, null); // reachable, so show "Not playing" instead of "Connecting…"/"Not connected"
@@ -1137,34 +1739,39 @@
         setConnected(false);
         setNowPlaying(null, null);
         log("Couldn't reach a speaker at this address. Check the IP and network.", "bad");
+        return;
       }
-    }).then(function(){ connectingNow = false; }, function(){ connectingNow = false; });
+      // getPlayInfo is a separate request from getStatus above — CORS
+      // readability on this device has been observed to differ per
+      // endpoint, so always try it independently rather than skipping it
+      // just because getStatus itself came back unreadable.
+      fetchPlayInfo();
+    });
   }
 
-  // Tapping the now-playing text before we're connected kicks off a connection
-  // attempt using whatever IP is currently entered, rather than requiring a
-  // trip into Settings first. The now-playing area shows "Connecting…" as
-  // immediate feedback, then resolves to "Not playing"/track/"Not connected".
-  // (Every other button already sends its own command — Power, volume,
-  // source, playback — and any command that actually reaches the speaker
-  // marks us connected via noteConnection(), so those buttons don't need a
-  // separate, redundant status check that could race against their own
-  // request and report a stale result.)
-  function ensureConnected(){
-    if(isConnected || connectingNow || !currentIp()) return;
-    connectingNow = true;
-    refreshStatus();
-  }
+  // Tapping anywhere that isn't an actual control — the now-playing text,
+  // or any other blank background area — refreshes status (song/artist and
+  // volume) right away, rather than requiring a trip into Settings or
+  // waiting for the periodic poll. Every real control already sends its
+  // own command and updates state from that response, so this only needs
+  // to fire for taps that don't land on one of those.
+  var BLANK_TAP_EXCLUDE = "button, input, select, a, .source-dropdown, .balance-popover, .drawer, .backdrop, .art-circle, .gauge-wrap";
+  var BLANK_TAP_THROTTLE_MS = 1000;
+  var lastBlankTapRefresh = 0;
   document.addEventListener("click", function(e){
-    if(e.target.closest && e.target.closest(".now-text")){ ensureConnected(); }
+    if(e.target.closest && e.target.closest(BLANK_TAP_EXCLUDE)) return;
+    var now = Date.now();
+    if(now - lastBlankTapRefresh < BLANK_TAP_THROTTLE_MS) return;
+    lastBlankTapRefresh = now;
+    refreshStatus();
   });
 
   // ---------- Wiring ----------
-  ipConfirmBtn.addEventListener("click", refreshStatus);
+  ipConfirmBtn.addEventListener("click", function(){ saveSettings(); refreshStatus(); });
   [ipInput, ipInputSettings].forEach(function(field){
-    field.addEventListener("keydown", function(e){ if(e.key === "Enter") refreshStatus(); });
+    field.addEventListener("keydown", function(e){ if(e.key === "Enter"){ saveSettings(); refreshStatus(); } });
     // Editing the address invalidates any prior connection.
-    field.addEventListener("input", function(){ syncIpInputs(field); setConnected(false); });
+    field.addEventListener("input", function(){ syncIpInputs(field); setConnected(false); netRadioPresets = null; netRadioPresetIndex = -1; });
   });
 
   function primeVolumeIndicator(direction){
@@ -1203,6 +1810,13 @@
 
   function goPower(on){
     var wasOn = isOn;
+    if(!on){
+      // Capture the real state right before standby (not whatever the
+      // power-on preset says) so it can be restored next time, if enabled.
+      lastVolumeBeforeOff = currentVolume;
+      lastInputBeforeOff = activeInput;
+      saveSettings();
+    }
     setPowerVisual(on);
     var powerRequest = on
       ? mcRequest("main/setPower?power=on")
@@ -1214,7 +1828,14 @@
       // controls sit "enabled" while the app also says "Not connected",
       // which is a contradiction the UI shouldn't show.
       if(!r.ok) setPowerVisual(wasOn);
-      else if(on) delay(POWER_ON_SETTLE_MS).then(function(){ return setVolumeAbsolute(powerOnVolSteps()); }).then(refreshStatus);
+      else if(on) delay(POWER_ON_SETTLE_MS).then(function(){ return setVolumeAbsolute(resolvePowerOnVolume()); }).then(function(){
+        if(rememberLastStateSelect.checked && lastInputBeforeOff){
+          return mcRequest("main/setInput?input=" + encodeURIComponent(lastInputBeforeOff)).then(function(inputResult){
+            describeResult(inputResult, "Source → " + lastInputBeforeOff);
+            if(inputResult.ok) highlightActiveInput(lastInputBeforeOff);
+          });
+        }
+      }).then(refreshStatus);
     });
   }
   powerBtn.addEventListener("click", function(){ goPower(!isOn); });
@@ -1252,12 +1873,107 @@
   volUpBtn.addEventListener("click", function(){ nudgeVolume("up"); });
   volDownBtn.addEventListener("click", function(){ nudgeVolume("down"); });
 
-  function togglePlayback(){
-    mcRequest("netusb/setPlayback?playback=play_pause").then(function(r){ describeResult(r, "Play/pause"); });
+  // Track/artist metadata takes a moment to update on the speaker after a
+  // playback command, so wait a beat before re-polling getPlayInfo.
+  var PLAYINFO_REFRESH_DELAY_MS = 800;
+  function refreshPlayInfoSoon(){
+    delay(PLAYINFO_REFRESH_DELAY_MS).then(fetchPlayInfo);
   }
-  prevBtn.addEventListener("click", function(){
-    mcRequest("netusb/setPlayback?playback=previous").then(function(r){ describeResult(r, "Previous track"); });
-  });
+  // Only the txt-in-middle layout has a dedicated play/pause button (the
+  // radial layout uses a tap gesture on the album art instead), so this
+  // just needs to keep that one icon in sync with isPlaying.
+  function updatePlayPauseIcon(){
+    replaceIcon(playPauseBtnTxt.querySelector(".icon-circle"), isPlaying ? "pause" : "play");
+    lucide.createIcons();
+    playPauseLabelTxt.textContent = isPlaying ? "Pause" : "Play";
+  }
+  function togglePlayback(){
+    mcRequest("netusb/setPlayback?playback=play_pause").then(function(r){
+      describeResult(r, "Play/pause");
+      if(r.ok) refreshPlayInfoSoon();
+    });
+  }
+
+  // ---------- Net Radio favorite-station navigation ----------
+  // A radio stream has no real "previous/next track", so on this source the
+  // transport buttons instead cycle through the speaker's own saved Net
+  // Radio presets (set up via the official Yamaha app) — same buttons,
+  // same gesture, just skipping stations instead of songs.
+  var netRadioPresets = null; // cached [{num, text}] — Net Radio entries only, from netusb/getPresetInfo
+  var netRadioPresetIndex = -1;
+  function fetchNetRadioPresets(){
+    if(netRadioPresets) return Promise.resolve(netRadioPresets);
+    return mcRequest("netusb/getPresetInfo").then(function(r){
+      if(r.ok && !r.blind && r.data && Array.isArray(r.data.preset_info)){
+        netRadioPresets = r.data.preset_info.map(function(entry, i){
+          return { num: i + 1, text: entry.text, input: entry.input };
+        }).filter(function(p){ return p.input === "net_radio" && p.text; });
+        return netRadioPresets;
+      }
+      // Unconfirmed response shape (no live device to test against) — surface
+      // whatever came back instead of silently doing nothing, so a shape
+      // mismatch is diagnosable from the log rather than just "not working".
+      if(r.ok && !r.blind){
+        log("getPresetInfo: unexpected shape — " + JSON.stringify(r.data), "warn");
+      } else {
+        describeResult(r, "Get presets");
+      }
+      return [];
+    });
+  }
+  function navigateNetRadioPreset(direction){
+    fetchNetRadioPresets().then(function(presets){
+      if(!presets.length){
+        log("No saved Net Radio presets found — save some via the Yamaha MusicCast app first.", "warn");
+        return;
+      }
+      var step = direction === "next" ? 1 : -1;
+      netRadioPresetIndex = netRadioPresetIndex < 0
+        ? (direction === "next" ? 0 : presets.length - 1)
+        : (netRadioPresetIndex + step + presets.length) % presets.length;
+      var preset = presets[netRadioPresetIndex];
+      mcRequest("netusb/recallPreset?zone=main&num=" + preset.num).then(function(r){
+        describeResult(r, "Preset → " + preset.text);
+        if(r.ok) refreshPlayInfoSoon();
+      });
+    });
+  }
+
+  function goPrevious(){
+    if(activeInput === "net_radio"){ navigateNetRadioPreset("previous"); return; }
+    mcRequest("netusb/setPlayback?playback=previous").then(function(r){
+      describeResult(r, "Previous track");
+      if(r.ok) refreshPlayInfoSoon();
+    });
+  }
+  function goNext(){
+    if(activeInput === "net_radio"){ navigateNetRadioPreset("next"); return; }
+    mcRequest("netusb/setPlayback?playback=next").then(function(r){
+      describeResult(r, "Next track");
+      if(r.ok) refreshPlayInfoSoon();
+    });
+  }
+  function toggleShuffle(){
+    mcRequest("netusb/toggleShuffle").then(function(r){
+      describeResult(r, "Shuffle");
+      if(r.ok) refreshPlayInfoSoon();
+    });
+  }
+  function toggleRepeat(){
+    mcRequest("netusb/toggleRepeat").then(function(r){
+      describeResult(r, "Repeat");
+      if(r.ok) refreshPlayInfoSoon();
+    });
+  }
+  prevBtn.addEventListener("click", goPrevious);
+  prevBtnTxt.addEventListener("click", goPrevious);
+  nextBtnTxt.addEventListener("click", goNext);
+  shuffleBtnTxt.addEventListener("click", toggleShuffle);
+  repeatBtnTxt.addEventListener("click", toggleRepeat);
+  playPauseBtnTxt.addEventListener("click", togglePlayback);
+  powerBtnTxt.addEventListener("click", function(){ goPower(!isOn); });
+  volUpBtnTxt.addEventListener("click", function(){ nudgeVolume("up"); });
+  volDownBtnTxt.addEventListener("click", function(){ nudgeVolume("down"); });
 
   var gestureStartY = 0;
   var gestureMoved = false;
@@ -1308,11 +2024,9 @@
     }
   }, {passive:false});
 
-  nextBtn.addEventListener("click", function(){
-    mcRequest("netusb/setPlayback?playback=next").then(function(r){ describeResult(r, "Next track"); });
-  });
+  nextBtn.addEventListener("click", goNext);
 
-  muteBtn.addEventListener("click", function(){
+  function toggleMute(){
     var next = !(lastKnownMute === true);
     mcRequest("main/setMute?enable=" + next).then(function(r){
       describeResult(r, next ? "Mute" : "Unmute");
@@ -1320,9 +2034,13 @@
         lastKnownMute = next;
         muteLabel.textContent = next ? "Unmute" : "Mute";
         muteBtn.classList.toggle("active", next);
+        muteLabelTxt.textContent = next ? "Unmute" : "Mute";
+        muteBtnTxt.classList.toggle("active", next);
       }
     });
-  });
+  }
+  muteBtn.addEventListener("click", toggleMute);
+  muteBtnTxt.addEventListener("click", toggleMute);
 
   // Balance has no documented range for this speaker — -10..10 is a
   // conservative guess; adjust BALANCE_MIN/MAX above if the real speaker
@@ -1373,7 +2091,7 @@
       return mcRequest("main/setPower?power=on").then(function(powerResult){
         describeResult(powerResult, "Power on");
         if(!powerResult.ok) return null;
-        return delay(POWER_ON_SETTLE_MS).then(function(){ return setVolumeAbsolute(powerOnVolSteps()); }).then(function(){
+        return delay(POWER_ON_SETTLE_MS).then(function(){ return setVolumeAbsolute(resolvePowerOnVolume()); }).then(function(){
           return mcRequest("main/setInput?input=" + encodeURIComponent(id)).then(function(inputResult){
             describeResult(inputResult, "Source → " + id);
             if(inputResult.ok) highlightActiveInput(id);
@@ -1392,22 +2110,176 @@
   function closeDrawer(){ drawer.classList.remove("open"); backdrop.classList.remove("open"); }
   settingsBtn.addEventListener("click", openDrawer);
   settingsBtnConnect.addEventListener("click", openDrawer);
+  settingsBtnTxt.addEventListener("click", openDrawer);
   drawerClose.addEventListener("click", closeDrawer);
   closeSettingsBtn.addEventListener("click", closeDrawer);
   backdrop.addEventListener("click", closeDrawer);
-  volLimitSelect.addEventListener("change", function(){ updateGauge(); lastDisplayedPct = pct(); });
+  volLimitSelect.addEventListener("change", function(){ updateGauge(); lastDisplayedPct = pct(); saveSettings(); });
+  volIncrementSelect.addEventListener("change", saveSettings);
+  powerOnVolSelect.addEventListener("change", saveSettings);
+  speakersSelect.addEventListener("change", saveSettings);
+  rememberLastStateSelect.addEventListener("change", function(){
+    applyRememberLastStateVisual();
+    saveSettings();
+  });
   testConnectionBtn.addEventListener("click", refreshStatus);
   resetDefaultsBtn.addEventListener("click", function(){
+    themeSelect.value = "system";
+    applyTheme("system");
+    layoutSelect.value = "radial";
+    applyLayout("radial");
     volLimitSelect.value = "100";
     volIncrementSelect.value = "1";
     powerOnVolSelect.value = "10";
+    rememberLastStateSelect.checked = false;
+    applyRememberLastStateVisual();
     updateGauge();
     lastDisplayedPct = pct();
+    saveSettings();
     log("Settings reset to defaults.", "ok");
   });
   showLogBtn.addEventListener("click", function(){
     logWrap.hidden = !logWrap.hidden;
     showLogBtn.textContent = logWrap.hidden ? "Show log…" : "Hide log";
+  });
+  // ---------- Device features screen ----------
+  // Walks the full system/getFeatures response into a browsable screen.
+  // input_list / sound_program_list entries (wherever they appear — top
+  // level, or nested per-zone) become real one-tap buttons that send the
+  // matching command, since those are genuinely single-shot actionable.
+  // Everything else — func_list capability flags, range_step min/max/step,
+  // account/service info, etc. — has no safe parameterless command to
+  // invoke, so it's shown read-only, grouped by its path in the response.
+  function humanizeFeatureId(id){
+    return String(id).replace(/_/g, " ").replace(/\b\w/g, function(c){ return c.toUpperCase(); });
+  }
+  function isLeafObject(obj){
+    return Object.keys(obj).every(function(k){ return obj[k] == null || typeof obj[k] !== "object"; });
+  }
+  function walkFeatures(node, path, ctx){
+    if(node == null) return;
+    var key = path[path.length - 1];
+    if(Array.isArray(node)){
+      if(key === "input_list" || key === "sound_program_list"){
+        var bucket = key === "input_list" ? ctx.inputs : ctx.soundPrograms;
+        node.forEach(function(item){
+          var id = (item && typeof item === "object") ? item.id : item;
+          if(id != null && bucket.indexOf(id) === -1) bucket.push(id);
+        });
+        return;
+      }
+      var hasObjects = node.some(function(v){ return v != null && typeof v === "object"; });
+      if(hasObjects){
+        // Recurse into each element (e.g. one entry per zone) so nested
+        // lists further down still get discovered.
+        node.forEach(function(item, i){
+          var label = (item && typeof item === "object" && item.id) ? item.id : String(i);
+          walkFeatures(item, path.slice(0, -1).concat(key + "[" + label + "]"), ctx);
+        });
+        return;
+      }
+      if(node.length) ctx.other.push({ path: path.join("."), kind: "chips", value: node });
+      return;
+    }
+    if(typeof node === "object"){
+      if(isLeafObject(node)){
+        ctx.other.push({ path: path.join("."), kind: "object", value: node });
+        return;
+      }
+      Object.keys(node).forEach(function(k){
+        if(k === "response_code") return;
+        walkFeatures(node[k], path.concat(k), ctx);
+      });
+      return;
+    }
+    ctx.other.push({ path: path.join("."), kind: "value", value: node });
+  }
+  function buildFeatureButtonSection(title, ids, onInvoke){
+    var section = document.createElement("div");
+    section.className = "feature-section";
+    var h = document.createElement("h3");
+    h.textContent = title;
+    section.appendChild(h);
+    var row = document.createElement("div");
+    row.className = "feature-btn-row";
+    ids.forEach(function(id){
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "feature-btn";
+      btn.textContent = humanizeFeatureId(id);
+      btn.addEventListener("click", function(){ onInvoke(id); });
+      row.appendChild(btn);
+    });
+    section.appendChild(row);
+    return section;
+  }
+  function buildFeatureInfoSection(entry){
+    var section = document.createElement("div");
+    section.className = "feature-section";
+    var h = document.createElement("h3");
+    h.textContent = entry.path;
+    section.appendChild(h);
+    if(entry.kind === "chips"){
+      var row = document.createElement("div");
+      row.className = "feature-chip-row";
+      entry.value.forEach(function(v){
+        var chip = document.createElement("span");
+        chip.className = "feature-chip";
+        chip.textContent = String(v);
+        row.appendChild(chip);
+      });
+      section.appendChild(row);
+    } else {
+      var info = document.createElement("div");
+      info.className = "feature-info-row";
+      info.textContent = entry.kind === "object" ? JSON.stringify(entry.value) : String(entry.value);
+      section.appendChild(info);
+    }
+    return section;
+  }
+  function showFeaturesStatus(text, level){
+    featuresStatus.textContent = text;
+    featuresStatus.className = "features-status" + (level ? " " + level : "");
+    featuresStatus.hidden = false;
+  }
+  function invokeFeatureInput(id){
+    showFeaturesStatus("Sending source → " + id + "…");
+    mcRequest("main/setInput?input=" + encodeURIComponent(id)).then(function(r){
+      describeResult(r, "Source → " + id);
+      if(r.ok) highlightActiveInput(id);
+      showFeaturesStatus("Source → " + id + (r.ok ? (r.blind ? " sent (no readback — CORS)." : " confirmed by speaker.") : " failed."), r.ok ? (r.blind ? "warn" : "ok") : "bad");
+    });
+  }
+  function invokeFeatureSoundProgram(id){
+    showFeaturesStatus("Setting sound program → " + id + "…");
+    mcRequest("main/setSoundProgram?program=" + encodeURIComponent(id)).then(function(r){
+      describeResult(r, "Sound program → " + id);
+      showFeaturesStatus("Sound program → " + id + (r.ok ? (r.blind ? " sent (no readback — CORS)." : " confirmed by speaker.") : " failed."), r.ok ? (r.blind ? "warn" : "ok") : "bad");
+    });
+  }
+  function renderFeaturesScreen(data){
+    var ctx = { inputs: [], soundPrograms: [], other: [] };
+    walkFeatures(data, [], ctx);
+    featuresBody.innerHTML = "";
+    featuresStatus.hidden = true;
+    if(ctx.inputs.length) featuresBody.appendChild(buildFeatureButtonSection("Inputs", ctx.inputs, invokeFeatureInput));
+    if(ctx.soundPrograms.length) featuresBody.appendChild(buildFeatureButtonSection("Sound Programs", ctx.soundPrograms, invokeFeatureSoundProgram));
+    ctx.other.forEach(function(entry){ featuresBody.appendChild(buildFeatureInfoSection(entry)); });
+  }
+  function openFeaturesScreen(){ featuresScreen.hidden = false; }
+  function closeFeaturesScreen(){ featuresScreen.hidden = true; }
+  featuresCloseBtn.addEventListener("click", closeFeaturesScreen);
+  getFeaturesBtn.addEventListener("click", function(){
+    mcRequest("system/getFeatures").then(function(r){
+      if(r.ok && !r.blind && r.data){
+        log("Device features loaded.", "ok");
+        closeDrawer();
+        renderFeaturesScreen(r.data);
+        openFeaturesScreen();
+      } else {
+        describeResult(r, "Get device features");
+      }
+    });
   });
 
   // ---------- Disconnected takeover screen ----------
@@ -1417,9 +2289,36 @@
   connectRefreshBtn.addEventListener("click", refreshStatus);
   syncIpInputs(ipInput);
 
+  // ---------- Restore persisted settings (IP, vol config, remembered state) ----------
+  (function restoreSettings(){
+    var saved = loadSettings();
+    if(!saved){ applyTheme(themeSelect.value); applyLayout(layoutSelect.value); return; }
+    if(saved.theme) themeSelect.value = saved.theme;
+    applyTheme(themeSelect.value);
+    if(saved.layout) layoutSelect.value = saved.layout;
+    applyLayout(layoutSelect.value);
+    if(saved.ip){ ipInput.value = saved.ip; syncIpInputs(ipInput); }
+    if(saved.speaker) speakersSelect.value = saved.speaker;
+    if(saved.volLimit) volLimitSelect.value = saved.volLimit;
+    if(saved.volIncrement) volIncrementSelect.value = saved.volIncrement;
+    if(saved.powerOnVol) powerOnVolSelect.value = saved.powerOnVol;
+    rememberLastStateSelect.checked = !!saved.rememberLastState;
+    if(typeof saved.lastVolume === "number") lastVolumeBeforeOff = saved.lastVolume;
+    if(typeof saved.lastInput === "string") lastInputBeforeOff = saved.lastInput;
+    applyRememberLastStateVisual();
+  })();
+
   updateGauge();
   lastDisplayedPct = pct();
-  refreshStatus();
+  detectProxy().then(refreshStatus);
+
+  // Keep now-playing in sync with track changes made from elsewhere (the
+  // speaker's own app, another remote, radio station changes, etc.), not
+  // just the moments this page itself sends a command.
+  var PLAYINFO_POLL_MS = 10000;
+  setInterval(function(){
+    if(isConnected && isOn) fetchPlayInfo();
+  }, PLAYINFO_POLL_MS);
 })();
 </script>
 </body>

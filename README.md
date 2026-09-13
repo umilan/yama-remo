@@ -8,8 +8,11 @@ A local web remote for Yamaha MusiCast speakers (built/tested against the [NX-N5
   - Switch sources (AirPlay / AUX / Bluetooth / USB)
   - Volume up/down via a circular dial-style control
   - Play/pause, next track
-  - Power on/standby
-  - Settings drawer: IP address, mute, max-volume/step config, full source list with custom input + "discover from speaker," and an activity log
+  - Power on/standby, with an optional "remember last state" mode that restores the volume/source it had before standby instead of a fixed preset
+  - Now-playing song/artist, kept live via periodic polling and refreshed after playback commands or a tap on any blank part of the screen
+  - Settings drawer: theme (Dark/Light/System), IP address, mute, max-volume/step config, full source list with custom input + "discover from speaker," and an activity log — settings persist across reloads
+  - Advanced: a full-screen device features browser (`system/getFeatures`) — real inputs/sound programs become one-tap buttons, everything else shown read-only
+- **`proxy.py`** — optional local proxy (Python stdlib only) that fixes the CORS limitation below, so status and now-playing actually populate instead of staying blind. See "Getting live status / song info" below.
 - **`docs/ready-made-remote-options.md`** — research on hardware remote options (M5Stack Dial, IKEA TRADFRI + ESP32-C6 Zigbee gateway, etc.) and the design history of the web controller.
 - **`docs/musiccast-api-command-reference.md`** — a fairly complete reference of the YXC HTTP API endpoints (zone/power/volume, NetUSB/playback, system, multi-room distribution), with notes on which are actually likely to apply to the NX-N500.
 - **`docs/musiccast-web-controller-changelog.md`** — running changelog for `musiccast-remote.html`.
@@ -47,7 +50,21 @@ Bookmark or "Add to Home Screen" the resulting `http://` URL on your phone inste
 
 ### Known limitation: CORS
 
-The speaker's API sends no `Access-Control-Allow-Origin` header, so the browser sometimes can't *read* JSON responses (`getStatus`, `getPlayInfo`, `getFeatures`) even though the command still reaches and executes on the speaker. The page tries a normal `fetch()` first and silently falls back to a fire-and-forget request if that's blocked — so buttons (volume, power, source, play/pause) work either way, but live status/now-playing readback only populates when the browser happens to allow the read. Any request that does reach the speaker — readable or not — is treated as proof of connectivity, so the "Connected" / "Not connected" indicator reflects real reachability rather than just the background status poll.
+The speaker's API sends no `Access-Control-Allow-Origin` header, so the browser can't *read* JSON responses (`getStatus`, `getPlayInfo`, `getFeatures`) even though the command still reaches and executes on the speaker. The page tries a normal `fetch()` first and silently falls back to a fire-and-forget request if that's blocked — so buttons (volume, power, source, play/pause) work either way, but live status/now-playing readback only populates when the browser happens to allow the read. In practice, whether it happens to allow the read varies by device/browser — on some it works, on others every request comes back blind. Any request that does reach the speaker — readable or not — is treated as proof of connectivity, so the "Connected" / "Not connected" indicator reflects real reachability rather than just the background status poll. `proxy.py` (below) is the actual fix for this, not a workaround around it — reading cross-origin JSON in a browser without server cooperation isn't something client-side code can do.
+
+### Getting live status / song info: the local proxy
+
+If status/now-playing never populates for you (stuck on "Not playing" / "Connected" even while something's audibly playing), that's the CORS limitation above — confirm it via Settings → Show log, which logs "Speaker reachable, but the browser can't read its response (CORS)" when this is happening.
+
+The fix is `proxy.py`, a single stdlib-only Python script:
+
+```
+python3 proxy.py         # serves on port 8080 by default; pass a port to override
+```
+
+Then open `http://localhost:8080/musiccast-remote.html` (or `http://<this-machine's-LAN-IP>:8080/musiccast-remote.html` from your phone, same Wi-Fi). It serves the app's files and relays YXC requests server-side — where there's no browser CORS enforcement at all — handing the JSON back to the page same-origin so the browser actually reads it. The page detects the proxy automatically and only reroutes through it when present; opening the file directly, or hosting it on a plain static server (the NAS/`http.server` options above, with no proxy), behaves exactly as before.
+
+Leave it running (or set it up as a startup service, same idea as the NAS options above) for it to stay available.
 
 ## Hardware remote (not yet built)
 
