@@ -25,4 +25,9 @@ zipalign -f 4 "$OUT/unsigned.apk" "$OUT/aligned.apk"
 apksigner sign --ks debug.keystore --ks-pass pass:android --ks-key-alias yamaremo \
     --min-sdk-version 15 --out yamaremo-kiosk.apk "$OUT/aligned.apk"
 apksigner verify --min-sdk-version 15 yamaremo-kiosk.apk
+# version.json tells installed apps that this build is available (self-update)
+VC=$(sed -n 's/.*android:versionCode="\([0-9]*\)".*/\1/p' AndroidManifest.xml)
+VN=$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' AndroidManifest.xml)
+printf '{"versionCode": %s, "versionName": "%s", "apk": "yamaremo-kiosk.apk"}\n' "$VC" "$VN" > version.json
+cat version.json
 ls -l yamaremo-kiosk.apk

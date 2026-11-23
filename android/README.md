@@ -30,6 +30,23 @@ and `proxy.py` isn't needed.
   launcher is the Home app again.
 - On Android 4.2 the navigation bar can only be dimmed, not hidden; Android 4.4+ hides it fully.
 
+## Updating from the tablet
+
+The app checks for a newer version every 6 hours, and you can check by hand in the admin settings
+(long-press the title, then **Check for updates now**). When a newer build is in the repo, an amber
+**Update x.y** button appears in the top bar. Tap it, then tap **Install** in Android's installer.
+Your settings are kept.
+
+- It reads `android/version.json` from the `main` branch on GitHub:
+  `https://raw.githubusercontent.com/umilan/yama-remo/main/android/version.json`.
+  `build-apk.sh` writes that file, so publishing an update means building, committing, and merging to `main`.
+- You can change the URL in the admin settings, for example to test a branch or to use a copy on your
+  NAS over plain `http://`. Put `version.json` and the APK in the same folder.
+- On Android 4.x the app turns on TLS 1.2 itself. If the check still fails with an SSL error, the
+  tablet's certificate store is too old for GitHub. In that case use a NAS or other `http://` URL.
+- Android 4.x can't update apps silently, so tapping **Install** is always needed.
+- The first install of 1.2 has to be done by hand (adb or file manager). Later versions can update from the tablet.
+
 ## Install
 
 `yamaremo-kiosk.apk` is in this folder (prebuilt).

@@ -54,6 +54,8 @@ public class MainActivity extends Activity {
     static final String PREF_SCREEN_ON = "screen_on";
     static final String PREF_BOOT = "boot";
     static final String PREF_PIN = "pin";
+    static final String PREF_UPDATE_URL = "update_url";
+    static final long UPDATE_EVERY_MS = 6L * 3600 * 1000;
 
     static final int C_BG = 0xFF121418;
     static final int C_PANEL = 0xFF22262E;
@@ -76,7 +78,10 @@ public class MainActivity extends Activity {
     long volumeHoldUntil;
 
     // views
-    Btn powerBtn, ipBtn, playBtn, muteBtn, volDn, volUp;
+    Btn powerBtn, ipBtn, playBtn, muteBtn, volDn, volUp, updateBtn;
+    Updater.Info pendingUpdate;
+    long lastUpdateCheck;
+    boolean updateBusy;
     Btn[] srcBtns = new Btn[6];
     TextView statusText, trackText, subText, volText, clockText, dateText;
     LinearLayout volRow, transportRow;
@@ -116,6 +121,7 @@ public class MainActivity extends Activity {
         ui.removeCallbacks(pollLoop);
         ui.post(pollLoop);
         if (clockShown) { ui.removeCallbacks(clockTick); clockTick.run(); }
+        if (System.currentTimeMillis() - lastUpdateCheck > UPDATE_EVERY_MS) checkForUpdates(false);
     }
 
     @Override
@@ -222,6 +228,19 @@ public class MainActivity extends Activity {
             public void onClick(View v) { showSettings(false); }
         });
         top.addView(ipBtn, new LinearLayout.LayoutParams(dp(190), ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // shown only when a newer version is available
+        updateBtn = new Btn(this);
+        updateBtn.textSize = 17;
+        updateBtn.bg = C_AMBER;
+        updateBtn.fg = C_BG;
+        updateBtn.setVisibility(View.GONE);
+        updateBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) { if (pendingUpdate != null) downloadAndInstall(pendingUpdate); }
+        });
+        LinearLayout.LayoutParams up = new LinearLayout.LayoutParams(dp(150), ViewGroup.LayoutParams.MATCH_PARENT);
+        up.leftMargin = dp(10);
+        top.addView(updateBtn, up);
         root.addView(top, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(64)));
 
         // --- now playing / clock panel (takes all space the rows below leave)
@@ -519,6 +538,7 @@ public class MainActivity extends Activity {
         final CheckBox screenOn = new CheckBox(this);
         final CheckBox boot = new CheckBox(this);
         final EditText pinEdit = new EditText(this);
+        final EditText updateUrlEdit = new EditText(this);
         if (admin) {
             screenOn.setText("Keep screen on");
             screenOn.setChecked(prefs.getBoolean(PREF_SCREEN_ON, true));
@@ -532,11 +552,28 @@ public class MainActivity extends Activity {
             pinEdit.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_VARIATION_PASSWORD);
             pinEdit.setText(prefs.getString(PREF_PIN, ""));
             box.addView(pinEdit);
+
+            TextView l3 = new TextView(this);
+            l3.setText("Update URL (version.json)");
+            box.addView(l3);
+            updateUrlEdit.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
+            updateUrlEdit.setSingleLine(true);
+            updateUrlEdit.setText(updateUrl());
+            box.addView(updateUrlEdit);
+            android.widget.Button chk = new android.widget.Button(this);
+            chk.setText("Check for updates now  (installed: " + versionName() + ")");
+            chk.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    prefs.edit().putString(PREF_UPDATE_URL, updateUrlEdit.getText().toString().trim()).commit();
+                    checkForUpdates(true);
+                }
+            });
+            box.addView(chk);
         }
 
         AlertDialog.Builder bld = new AlertDialog.Builder(this)
                 .setTitle(admin ? "Kiosk settings" : "Speaker")
-                .setView(box)
+                .setView(scroll(box))
                 .setPositiveButton("Save", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface d, int w) {
                         SharedPreferences.Editor e = prefs.edit();
@@ -547,6 +584,7 @@ public class MainActivity extends Activity {
                             e.putBoolean(PREF_SCREEN_ON, screenOn.isChecked());
                             e.putBoolean(PREF_BOOT, boot.isChecked());
                             e.putString(PREF_PIN, pinEdit.getText().toString().trim());
+                            e.putString(PREF_UPDATE_URL, updateUrlEdit.getText().toString().trim());
                         }
                         e.commit();
                         applyScreenOn();
@@ -565,6 +603,82 @@ public class MainActivity extends Activity {
             });
         }
         bld.show();
+    }
+
+    View scroll(View v) {
+        android.widget.ScrollView sv = new android.widget.ScrollView(this);
+        sv.addView(v);
+        return sv;
+    }
+
+    String updateUrl() {
+        String u = prefs.getString(PREF_UPDATE_URL, "").trim();
+        return u.length() > 0 ? u : Updater.DEFAULT_URL;
+    }
+
+    String versionName() {
+        try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
+        catch (Exception e) { return "?"; }
+    }
+
+    void toast(String s) { android.widget.Toast.makeText(this, s, android.widget.Toast.LENGTH_LONG).show(); }
+
+    void checkForUpdates(final boolean manual) {
+        if (updateBusy) return;
+        updateBusy = true;
+        lastUpdateCheck = System.currentTimeMillis();
+        final String url = updateUrl();
+        if (manual) toast("Checking for updates\u2026");
+        new Thread(new Runnable() {
+            public void run() {
+                Updater.Info info = null;
+                String err = null;
+                try { info = Updater.check(MainActivity.this, url); }
+                catch (Exception e) { err = e.getClass().getSimpleName() + ": " + e.getMessage(); }
+                final Updater.Info fi = info;
+                final String fe = err;
+                ui.post(new Runnable() {
+                    public void run() {
+                        updateBusy = false;
+                        pendingUpdate = fi;
+                        updateBtn.label = fi != null ? "Update " + fi.versionName : "";
+                        updateBtn.setVisibility(fi != null ? View.VISIBLE : View.GONE);
+                        updateBtn.invalidate();
+                        if (!manual) return;
+                        if (fe != null) toast("Update check failed: " + fe);
+                        else if (fi == null) toast("Up to date (" + versionName() + ")");
+                        else toast("Version " + fi.versionName + " is available \u2013 tap Update in the top bar");
+                    }
+                });
+            }
+        }).start();
+    }
+
+    void downloadAndInstall(final Updater.Info info) {
+        if (updateBusy) return;
+        updateBusy = true;
+        updateBtn.label = "Downloading\u2026";
+        updateBtn.invalidate();
+        new Thread(new Runnable() {
+            public void run() {
+                java.io.File f = null;
+                String err = null;
+                try { f = Updater.download(MainActivity.this, info); }
+                catch (Exception e) { err = e.getClass().getSimpleName() + ": " + e.getMessage(); }
+                final java.io.File ff = f;
+                final String fe = err;
+                ui.post(new Runnable() {
+                    public void run() {
+                        updateBusy = false;
+                        updateBtn.label = "Update " + info.versionName;
+                        updateBtn.invalidate();
+                        if (fe != null) { toast("Download failed: " + fe); return; }
+                        try { Updater.install(MainActivity.this, ff); }
+                        catch (Exception e) { toast("Can't open the installer: " + e.getMessage()); }
+                    }
+                });
+            }
+        }).start();
     }
 
     /** Opens this app's system page, where "Clear defaults" stops it being the Home app. */
