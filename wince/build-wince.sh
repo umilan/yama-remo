@@ -6,6 +6,15 @@
 #     https://downloads.sourceforge.net/project/cegcc/cegcc/0.59.1/mingw32ce-0.59.1.tar.bz2
 #   sudo tar xjf mingw32ce.tar.bz2 -C /      # installs into /opt/mingw32ce
 #
+# The prebuilt compiler is 32-bit and wants old GMP/MPFR sonames. On a modern
+# Debian/Ubuntu:
+#   sudo dpkg --add-architecture i386 && sudo apt-get update
+#   sudo apt-get install libc6:i386 libmpfr6:i386 libgmp10:i386
+#   mkdir -p ~/cegcc-compat
+#   ln -sf /usr/lib/i386-linux-gnu/libmpfr.so.6 ~/cegcc-compat/libmpfr.so.1
+#   ln -sf /usr/lib/i386-linux-gnu/libgmp.so.10 ~/cegcc-compat/libgmp.so.3
+#   export LD_LIBRARY_PATH=~/cegcc-compat
+#
 # Override the toolchain location with CEGCC=/path/to/mingw32ce if needed.
 set -e
 cd "$(dirname "$0")"

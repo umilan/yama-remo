@@ -28,6 +28,8 @@ Winsock directly. Because no browser is involved, the CORS limitation doesn't ap
 
 ## Build
 
+A prebuilt `yamaremo.exe` (ARM, about 22 KB) is committed in this folder. To rebuild it:
+
 ```sh
 ./build-wince.sh
 ```
