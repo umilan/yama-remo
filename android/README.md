@@ -9,23 +9,28 @@ and `proxy.py` isn't needed.
 
 ## Features
 
-- Power, sources (AirPlay, AUX, Optical, Bluetooth, USB, Net Radio), volume −/+ (hold to repeat),
-  tap or drag on the volume bar, mute, previous, play/pause, next.
-- Now playing, refreshed every 3 s. Tap the panel to refresh at once.
-- When the speaker is off (or unreachable), the screen shows a big clock with the date below it.
-  Only the power button and the sources stay; tapping a source switches the speaker on.
-- Source buttons are along the bottom. Previous/play/next are hidden for inputs that have no
-  tracks (AUX, Optical, USB), as in the web remote.
-- The tablet's hardware volume keys control the speaker's volume.
-- Landscape only, full screen, screen kept on.
+- Black, minimal screen. Sources are text tabs along the top (AirPlay, AUX, Optical, Bluetooth,
+  Net Radio), with **OFF** at the end to put the speaker in standby.
+- Playing: big track title with the artist below it, then Prev / Shuffle / Play-Pause / Repeat / Next
+  as outline icons with labels. Shuffle and Repeat are dimmed when off; tapping Repeat cycles
+  off → all → one.
+- Volume: − and + at the ends of a dotted bar with one dot per volume step. Tap or drag on the dots
+  to jump, and hold −/+ to repeat. The tablet's hardware volume keys also control the speaker.
+- Inputs without tracks (AUX, Optical, USB) hide the transport row.
+- Speaker off or unreachable: a big clock with the date in capitals (`MONDAY, 2026 / 11 / 23`).
+  The bottom row shows **Settings** on the left, the speaker IP on the right (red when it can't
+  be reached) and **Update x.y** in the middle when a newer version exists.
+- When the speaker is muted (for example from the MusicCast app), the dots and artist line turn
+  amber. There is no Mute button in this design.
 
 ## Kiosk mode
 
 - The app can be set as the tablet's **Home app**. Then the Home button and every reboot bring you
   back to the remote, and Back does nothing.
 - It also starts after a reboot even if it isn't the Home app; you can turn this off.
-- **Admin settings:** long-press the "MusicCast Remote" title. There you can set the IP, keep
-  the screen on, start after reboot, an optional PIN for this screen, and **Leave kiosk**.
+- **Settings:** double-tap the clock, or tap **Settings** under it. There you can set the IP, keep
+  the screen on, start after reboot, an optional PIN for this screen, the update URL, and
+  **Leave kiosk**. Tap the IP under the clock to change only the speaker IP.
 - **Leave kiosk** opens the app's system page. Tap **Clear defaults** there and the normal
   launcher is the Home app again.
 - On Android 4.2 the navigation bar can only be dimmed, not hidden; Android 4.4+ hides it fully.
@@ -33,8 +38,8 @@ and `proxy.py` isn't needed.
 ## Updating from the tablet
 
 The app checks for a newer version every 6 hours, and you can check by hand in the admin settings
-(long-press the title, then **Check for updates now**). When a newer build is in the repo, an amber
-**Update x.y** button appears in the top bar. Tap it, then tap **Install** in Android's installer.
+(double-tap the clock, then **Check for updates now**). When a newer build is in the repo, an amber
+**Update x.y** appears under the clock. Tap it, then tap **Install** in Android's installer.
 Your settings are kept.
 
 - It reads `android/version.json` from the `main` branch on GitHub:
