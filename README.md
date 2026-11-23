@@ -12,6 +12,7 @@ A local web remote for Yamaha MusiCast speakers (built/tested against the [NX-N5
   - Now-playing song/artist, kept live via periodic polling and refreshed after playback commands or a tap on any blank part of the screen
   - Settings drawer: theme (Dark/Light/System), IP address, mute, max-volume/step config, full source list with custom input + "discover from speaker," and an activity log — settings persist across reloads
   - Advanced: a full-screen device features browser (`system/getFeatures`) — real inputs/sound programs become one-tap buttons, everything else shown read-only
+- **`wince/`** — a native Windows CE 6.0 version of the remote (single `.exe`, built for the Medion GoPal E5270's 800×480 screen). See `wince/README.md`.
 - **`proxy.py`** — optional local proxy (Python stdlib only) that fixes the CORS limitation below, so status and now-playing actually populate instead of staying blind. See "Getting live status / song info" below.
 - **`docs/ready-made-remote-options.md`** — research on hardware remote options (M5Stack Dial, IKEA TRADFRI + ESP32-C6 Zigbee gateway, etc.) and the design history of the web controller.
 - **`docs/musiccast-api-command-reference.md`** — a fairly complete reference of the YXC HTTP API endpoints (zone/power/volume, NetUSB/playback, system, multi-room distribution), with notes on which are actually likely to apply to the NX-N500.
