@@ -12,6 +12,10 @@ and `proxy.py` isn't needed.
 - Power, sources (AirPlay, AUX, Optical, Bluetooth, USB, Net Radio), volume −/+ (hold to repeat),
   tap or drag on the volume bar, mute, previous, play/pause, next.
 - Now playing, refreshed every 3 s. Tap the panel to refresh at once.
+- When the speaker is off (or unreachable), the screen shows a big clock with the date below it.
+  Only the power button and the sources stay; tapping a source switches the speaker on.
+- Source buttons are along the bottom. Previous/play/next are hidden for inputs that have no
+  tracks (AUX, Optical, USB), as in the web remote.
 - The tablet's hardware volume keys control the speaker's volume.
 - Landscape only, full screen, screen kept on.
 

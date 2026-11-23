@@ -33,6 +33,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -75,7 +78,9 @@ public class MainActivity extends Activity {
     // views
     Btn powerBtn, ipBtn, playBtn, muteBtn, volDn, volUp;
     Btn[] srcBtns = new Btn[6];
-    TextView statusText, trackText, subText, volText;
+    TextView statusText, trackText, subText, volText, clockText, dateText;
+    LinearLayout volRow, transportRow;
+    boolean clockShown = false;
     VolumeBar volBar;
 
     final Handler ui = new Handler(Looper.getMainLooper());
@@ -110,6 +115,7 @@ public class MainActivity extends Activity {
         hideSystemBars();
         ui.removeCallbacks(pollLoop);
         ui.post(pollLoop);
+        if (clockShown) { ui.removeCallbacks(clockTick); clockTick.run(); }
     }
 
     @Override
@@ -117,6 +123,7 @@ public class MainActivity extends Activity {
         super.onPause();
         resumed = false;
         ui.removeCallbacks(pollLoop);
+        ui.removeCallbacks(clockTick);
     }
 
     @Override
@@ -217,7 +224,7 @@ public class MainActivity extends Activity {
         top.addView(ipBtn, new LinearLayout.LayoutParams(dp(190), ViewGroup.LayoutParams.MATCH_PARENT));
         root.addView(top, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(64)));
 
-        // --- now playing
+        // --- now playing / clock panel (takes all space the rows below leave)
         LinearLayout np = new LinearLayout(this);
         np.setOrientation(LinearLayout.VERTICAL);
         np.setGravity(Gravity.CENTER_VERTICAL);
@@ -225,35 +232,42 @@ public class MainActivity extends Activity {
         np.setBackgroundDrawable(Btn.rounded(C_PANEL, dp(14)));
         trackText = text("", 30, C_TEXT, true);
         subText = text("", 19, C_MUTED, false);
+        clockText = text("", 96, C_TEXT, true);
+        clockText.setGravity(Gravity.CENTER_HORIZONTAL);
+        clockText.setIncludeFontPadding(false);
+        dateText = text("", 26, C_MUTED, false);
+        dateText.setGravity(Gravity.CENTER_HORIZONTAL);
         np.addView(trackText);
         np.addView(subText);
+        np.addView(clockText, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        np.addView(dateText, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         np.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { poll(); }
         });
-        root.addView(np, spaced(0, 1.2f));
+        // size the clock to whatever height the panel gets
+        np.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
+                if (b - t == ob - ot && r - l == or - ol) return;
+                final float h = b - t - dp(16);
+                final float w = r - l - dp(44);
+                ui.post(new Runnable() {
+                    public void run() {
+                        float clockPx = Math.min(h * 0.58f, w / 3.4f);
+                        clockText.setTextSize(TypedValue.COMPLEX_UNIT_PX, Math.max(dp(40), clockPx));
+                        dateText.setTextSize(TypedValue.COMPLEX_UNIT_PX, Math.max(dp(18), Math.min(h * 0.15f, dp(34))));
+                    }
+                });
+            }
+        });
+        root.addView(np, spaced(0, 1));
 
-        // --- sources
-        LinearLayout srcRow = row();
-        for (int i = 0; i < 6; i++) {
-            final int idx = i;
-            Btn bt = new Btn(this);
-            bt.label = SRC_LABEL[i];
-            bt.textSize = 18;
-            bt.setOnClickListener(new View.OnClickListener() {
-                public void onClick(View v) { selectInput(idx); }
-            });
-            srcBtns[i] = bt;
-            srcRow.addView(bt, cell(i > 0));
-        }
-        root.addView(srcRow, spaced(dp(76), 0));
-
-        // --- volume
-        LinearLayout volRow = row();
+        // --- volume (with mute)
+        volRow = row();
         volDn = new Btn(this);
         volDn.label = "−";
         volDn.textSize = 40;
         volDn.repeat = new Runnable() { public void run() { changeVolume(-1); } };
-        volRow.addView(volDn, new LinearLayout.LayoutParams(dp(150), ViewGroup.LayoutParams.MATCH_PARENT));
+        volRow.addView(volDn, new LinearLayout.LayoutParams(dp(130), ViewGroup.LayoutParams.MATCH_PARENT));
 
         LinearLayout volMid = new LinearLayout(this);
         volMid.setOrientation(LinearLayout.VERTICAL);
@@ -279,11 +293,23 @@ public class MainActivity extends Activity {
         volUp.label = "+";
         volUp.textSize = 40;
         volUp.repeat = new Runnable() { public void run() { changeVolume(+1); } };
-        volRow.addView(volUp, new LinearLayout.LayoutParams(dp(150), ViewGroup.LayoutParams.MATCH_PARENT));
-        root.addView(volRow, spaced(dp(104), 0));
+        volRow.addView(volUp, new LinearLayout.LayoutParams(dp(130), ViewGroup.LayoutParams.MATCH_PARENT));
 
-        // --- transport
-        LinearLayout tr = row();
+        muteBtn = new Btn(this);
+        muteBtn.textSize = 20;
+        muteBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                mute = !mute; render();
+                send("main/setMute?enable=" + (mute ? "true" : "false"), true);
+            }
+        });
+        LinearLayout.LayoutParams mp = new LinearLayout.LayoutParams(dp(130), ViewGroup.LayoutParams.MATCH_PARENT);
+        mp.leftMargin = dp(10);
+        volRow.addView(muteBtn, mp);
+        root.addView(volRow, spaced(dp(96), 0));
+
+        // --- transport (hidden for line-in sources and in standby)
+        transportRow = row();
         Btn prev = new Btn(this);
         prev.icon = Btn.ICON_PREV;
         prev.setOnClickListener(new View.OnClickListener() {
@@ -301,23 +327,28 @@ public class MainActivity extends Activity {
         next.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { send("netusb/setPlayback?playback=next", true); }
         });
-        muteBtn = new Btn(this);
-        muteBtn.textSize = 22;
-        muteBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                mute = !mute; render();
-                send("main/setMute?enable=" + (mute ? "true" : "false"), true);
-            }
-        });
-        tr.addView(prev, cell(false));
-        tr.addView(playBtn, cell(true));
-        tr.addView(next, cell(true));
-        tr.addView(muteBtn, cell(true));
-        root.addView(tr, spaced(dp(104), 0));
+        transportRow.addView(prev, cell(false));
+        transportRow.addView(playBtn, cell(true));
+        transportRow.addView(next, cell(true));
+        root.addView(transportRow, spaced(dp(96), 0));
+
+        // --- sources (bottom)
+        LinearLayout srcRow = row();
+        for (int i = 0; i < 6; i++) {
+            final int idx = i;
+            Btn bt = new Btn(this);
+            bt.label = SRC_LABEL[i];
+            bt.textSize = 18;
+            bt.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) { selectInput(idx); }
+            });
+            srcBtns[i] = bt;
+            srcRow.addView(bt, cell(i > 0));
+        }
+        root.addView(srcRow, spaced(dp(76), 0));
 
         return root;
     }
-
     LinearLayout row() {
         LinearLayout l = new LinearLayout(this);
         l.setOrientation(LinearLayout.HORIZONTAL);
@@ -352,6 +383,37 @@ public class MainActivity extends Activity {
         return id;
     }
 
+    /** Inputs with no tracks, so no previous/play/next (same list as the web remote). */
+    static boolean isLineIn(String id) {
+        return "aux".equals(id) || "optical".equals(id) || "usb".equals(id) || "line_in".equals(id);
+    }
+
+    void updateClock() {
+        Date now = new Date();
+        clockText.setText(android.text.format.DateFormat.getTimeFormat(this).format(now));
+        dateText.setText(new SimpleDateFormat("EEEE, d MMMM yyyy", Locale.getDefault()).format(now));
+    }
+
+    final Runnable clockTick = new Runnable() {
+        public void run() {
+            updateClock();
+            // next tick just after the minute changes
+            long ms = System.currentTimeMillis();
+            ui.postDelayed(this, 60000 - (ms % 60000) + 50);
+        }
+    };
+
+    void showClock(boolean show) {
+        if (show == clockShown) return;
+        clockShown = show;
+        trackText.setVisibility(show ? View.GONE : View.VISIBLE);
+        subText.setVisibility(show ? View.GONE : View.VISIBLE);
+        clockText.setVisibility(show ? View.VISIBLE : View.GONE);
+        dateText.setVisibility(show ? View.VISIBLE : View.GONE);
+        ui.removeCallbacks(clockTick);
+        if (show) clockTick.run();
+    }
+
     void render() {
         boolean on = connected && powerOn;
         int dim = on ? C_TEXT : C_MUTED;
@@ -370,22 +432,25 @@ public class MainActivity extends Activity {
         ipBtn.label = TextUtils.isEmpty(ip()) ? "Set IP" : "IP " + ip();
         ipBtn.invalidate();
 
-        if (!connected || !powerOn) {
-            trackText.setText(connected ? "Speaker is in standby" : "No speaker");
-            trackText.setTextColor(C_MUTED);
-            subText.setText(connected ? "Tap ON to switch it on" : "Tap here to retry");
-        } else if (!TextUtils.isEmpty(track)) {
-            trackText.setText(track);
-            trackText.setTextColor(C_TEXT);
-            subText.setText(TextUtils.isEmpty(artist) ? sourceLabel(input) : artist + "   •   " + sourceLabel(input));
-        } else {
-            trackText.setText("Not playing");
-            trackText.setTextColor(C_MUTED);
-            subText.setText("Source: " + sourceLabel(input));
+        // speaker off or unreachable: big clock, only sources + power stay
+        showClock(!on);
+        volRow.setVisibility(on ? View.VISIBLE : View.GONE);
+        transportRow.setVisibility(on && !isLineIn(input) ? View.VISIBLE : View.GONE);
+
+        if (on) {
+            if (!TextUtils.isEmpty(track)) {
+                trackText.setText(track);
+                trackText.setTextColor(C_TEXT);
+                subText.setText(TextUtils.isEmpty(artist) ? sourceLabel(input) : artist + "   •   " + sourceLabel(input));
+            } else {
+                trackText.setText(isLineIn(input) ? sourceLabel(input) : "Not playing");
+                trackText.setTextColor(isLineIn(input) ? C_TEXT : C_MUTED);
+                subText.setText(isLineIn(input) ? "External input" : "Source: " + sourceLabel(input));
+            }
         }
 
         for (int i = 0; i < 6; i++) {
-            boolean act = SRC_ID[i].equals(input);
+            boolean act = on && SRC_ID[i].equals(input);
             srcBtns[i].bg = act ? C_ACCENT : C_PANEL;
             srcBtns[i].fg = act ? C_TEXT : dim;
             srcBtns[i].invalidate();
@@ -396,13 +461,13 @@ public class MainActivity extends Activity {
         volText.setText(mute ? "Volume " + v + "  (muted)" : "Volume " + v);
         volText.setTextColor(mute ? C_AMBER : dim);
         volBar.fraction = v / (float) maxv;
-        volBar.color = (mute || !on) ? C_MUTED : C_ACCENT;
+        volBar.color = mute ? C_MUTED : C_ACCENT;
         volBar.invalidate();
         volDn.fg = dim; volDn.invalidate();
         volUp.fg = dim; volUp.invalidate();
 
         playBtn.icon = playing ? Btn.ICON_PAUSE : Btn.ICON_PLAY;
-        playBtn.bg = on ? C_ACCENT : C_PANEL;
+        playBtn.bg = C_ACCENT;
         playBtn.invalidate();
 
         muteBtn.label = mute ? "Unmute" : "Mute";
