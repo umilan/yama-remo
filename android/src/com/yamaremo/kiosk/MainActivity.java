@@ -562,7 +562,10 @@ public class MainActivity extends Activity {
 
         // clock-screen footer: "Settings · v1.29 · IP …" centred, one text style, each part tappable
         offRow = row();
-        offRow.setGravity(Gravity.CENTER);
+        // sits on the bottom edge of the app area (the very bottom of the screen when the
+        // navigation buttons are hidden)
+        offRow.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
+        offRow.setPadding(0, 0, 0, dp(6));
         settingsText = footerText();
         settingsText.setText("Settings");
         settingsText.setOnClickListener(new View.OnClickListener() {
@@ -633,14 +636,14 @@ public class MainActivity extends Activity {
 
     TextView footerText() {
         TextView t = text("", 20, C_DIM, true);
-        t.setGravity(Gravity.CENTER_VERTICAL);
+        t.setGravity(Gravity.BOTTOM);
         t.setPadding(dp(10), 0, dp(10), 0); // generous touch area
         return t;
     }
 
     TextView footerDot() {
         TextView t = text("\u00b7", 20, C_DIM, true);
-        t.setGravity(Gravity.CENTER_VERTICAL);
+        t.setGravity(Gravity.BOTTOM);
         return t;
     }
 

@@ -1,5 +1,9 @@
 # Android kiosk app — changelog
 
+## 1.37 (versionCode 46)
+- Clock screen footer (Settings · version · IP) sits on the bottom edge of the app area instead of
+  centred in its row; with "Hide navigation buttons" on, that is the very bottom of the screen.
+
 ## 1.36 (versionCode 45)
 - Swipe volume is asymmetric: up 1 step per 16 dp of finger movement (slower), down 1 step per 5 dp
   (over 3× faster), so the volume can be pulled down quickly.
