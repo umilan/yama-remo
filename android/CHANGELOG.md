@@ -1,5 +1,8 @@
 # Android kiosk app — changelog
 
+## 1.19 (versionCode 23)
+- Inactive tabs in the top row (sources and OFF) dimmed to 25 % of the active white.
+
 ## 1.18 (versionCode 22)
 - The top (song) row carries short messages; the artist row always shows the artist:
   - "Muted" (amber) while muted; "Unmuted" briefly when unmuting.

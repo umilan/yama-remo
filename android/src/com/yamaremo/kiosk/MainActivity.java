@@ -65,7 +65,8 @@ public class MainActivity extends Activity {
     static final int C_BG = 0xFF000000;
     static final int C_TEXT = 0xFFE8E8EA;
     static final int C_GRAY = 0xFF8C8C8C;   // inactive tabs, artist
-    static final int C_DIM = 0xFF4E4E4E;    // off-state tabs, shuffle/repeat off, empty volume dots
+    static final int C_DIM = 0xFF4E4E4E;
+    static final int C_TAB_IDLE = 0xFF3A3A3A; // inactive top tabs: 25 % of the active white    // off-state tabs, shuffle/repeat off, empty volume dots
     static final int C_RED = 0xFFC83C3C;
     static final int C_AMBER = 0xFFE0A030;
 
@@ -776,10 +777,10 @@ public class MainActivity extends Activity {
 
         // tabs: active source white, others grey; when off everything dim except OFF
         for (int i = 0; i < SRC_ID.length; i++) {
-            srcBtns[i].fg = on ? (SRC_ID[i].equals(input) ? C_TEXT : C_GRAY) : C_DIM;
+            srcBtns[i].fg = on && SRC_ID[i].equals(input) ? C_TEXT : C_TAB_IDLE;
             srcBtns[i].invalidate();
         }
-        offBtn.fg = on ? C_GRAY : C_TEXT;
+        offBtn.fg = on ? C_TAB_IDLE : C_TEXT;
         offBtn.invalidate();
 
         showClock(!on);
