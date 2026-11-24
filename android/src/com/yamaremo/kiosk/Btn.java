@@ -17,7 +17,8 @@ import android.view.View;
  */
 public class Btn extends View {
     static final int ICON_NONE = 0, ICON_PREV = 1, ICON_NEXT = 2, ICON_PLAY = 3, ICON_PAUSE = 4,
-            ICON_SHUFFLE = 5, ICON_REPEAT = 6, ICON_REPEAT_ONE = 7;
+            ICON_SHUFFLE = 5, ICON_REPEAT = 6, ICON_REPEAT_ONE = 7, ICON_SETTINGS = 8,
+            ICON_SPEAKER = 9, ICON_MUTED = 10;
 
     String label = "";
     int icon = ICON_NONE;
@@ -177,6 +178,39 @@ public class Btn extends View {
             c.drawPath(path, paint);
             arrow(c, rgt, t, hs * 0.32f);
             arrow(c, rgt, b, hs * 0.32f);
+            break;
+        }
+        case ICON_SETTINGS: {
+            // gear: ring + 8 teeth + hub
+            float ro = hs * 0.62f, ri = hs * 0.26f;
+            c.drawCircle(cx, cy, ro, paint);
+            c.drawCircle(cx, cy, ri, paint);
+            for (int k = 0; k < 8; k++) {
+                double a = Math.PI / 4 * k;
+                float dx = (float) Math.cos(a), dy = (float) Math.sin(a);
+                c.drawLine(cx + dx * ro, cy + dy * ro, cx + dx * hs * 0.92f, cy + dy * hs * 0.92f, paint);
+            }
+            break;
+        }
+        case ICON_SPEAKER:
+        case ICON_MUTED: {
+            path.moveTo(cx - hs * 0.9f, cy - hs * 0.3f);
+            path.lineTo(cx - hs * 0.5f, cy - hs * 0.3f);
+            path.lineTo(cx - hs * 0.05f, cy - hs * 0.75f);
+            path.lineTo(cx - hs * 0.05f, cy + hs * 0.75f);
+            path.lineTo(cx - hs * 0.5f, cy + hs * 0.3f);
+            path.lineTo(cx - hs * 0.9f, cy + hs * 0.3f);
+            path.close();
+            c.drawPath(path, paint);
+            if (icon == ICON_MUTED) {
+                c.drawLine(cx + hs * 0.3f, cy - hs * 0.3f, cx + hs * 0.9f, cy + hs * 0.3f, paint);
+                c.drawLine(cx + hs * 0.3f, cy + hs * 0.3f, cx + hs * 0.9f, cy - hs * 0.3f, paint);
+            } else {
+                rect.set(cx - hs * 0.25f, cy - hs * 0.4f, cx + hs * 0.45f, cy + hs * 0.4f);
+                c.drawArc(rect, -50, 100, false, paint);
+                rect.set(cx - hs * 0.35f, cy - hs * 0.8f, cx + hs * 0.85f, cy + hs * 0.8f);
+                c.drawArc(rect, -50, 100, false, paint);
+            }
             break;
         }
         case ICON_REPEAT:

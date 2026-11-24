@@ -79,7 +79,7 @@ public class MainActivity extends Activity {
     long volumeHoldUntil;
 
     // views
-    Btn offBtn, prevBtn, shuffleBtn, playBtn, repeatBtn, nextBtn, volDn, volUp, updateBtn;
+    Btn offBtn, prevBtn, shuffleBtn, settingsBtn, playBtn, muteBtn, repeatBtn, nextBtn, volDn, volUp, updateBtn;
     Btn[] srcBtns = new Btn[SRC_ID.length];
     TextView trackText, artistText, stationText, clockText, dateText, settingsText, ipText;
     android.widget.FrameLayout bottom;
@@ -364,7 +364,18 @@ public class MainActivity extends Activity {
         playBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { playing = !playing; render(); send("netusb/setPlayback?playback=play_pause", true); }
         });
-        for (Btn b : new Btn[] { prevBtn, shuffleBtn, playBtn, repeatBtn, nextBtn }) transportRow.addView(b, weight());
+        settingsBtn = iconBtn(Btn.ICON_SETTINGS, "Settings", null);
+        settingsBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) { showSettings(true); }
+        });
+        muteBtn = iconBtn(Btn.ICON_SPEAKER, "Mute", null);
+        muteBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                mute = !mute; render();
+                send("main/setMute?enable=" + (mute ? "true" : "false"), true);
+            }
+        });
+        for (Btn b : actionButtons()) transportRow.addView(b, weight());
         root.addView(transportRow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(104)));
 
         // --- bottom: volume when on; Settings / update / IP when off
@@ -423,6 +434,10 @@ public class MainActivity extends Activity {
         ViewGroup.LayoutParams lp = bottom.getLayoutParams();
         lp.height = bottomHeight();
         bottom.setLayoutParams(lp);
+    }
+
+    Btn[] actionButtons() {
+        return new Btn[] { prevBtn, shuffleBtn, settingsBtn, playBtn, muteBtn, repeatBtn, nextBtn };
     }
 
     Btn iconBtn(int icon, String caption, final String cmd) {
@@ -546,7 +561,11 @@ public class MainActivity extends Activity {
         offBtn.invalidate();
 
         showClock(!on);
-        setTransportAllowed(on && !isLineIn(input));
+        // line-in inputs have no tracks: only Settings and Mute stay in the row
+        setTransportAllowed(on);
+        int trackCtl = isLineIn(input) ? View.INVISIBLE : View.VISIBLE; // keep Settings/Mute in place
+        for (Btn b : new Btn[] { prevBtn, shuffleBtn, playBtn, repeatBtn, nextBtn })
+            if (b.getVisibility() != trackCtl) b.setVisibility(trackCtl);
 
         if (on) {
             String song = track, by = artist, station = "";
@@ -582,7 +601,10 @@ public class MainActivity extends Activity {
         shuffleBtn.fg = shuffle ? C_TEXT : C_DIM;
         repeatBtn.fg = "off".equals(repeatMode) ? C_DIM : C_TEXT;
         repeatBtn.icon = "one".equals(repeatMode) ? Btn.ICON_REPEAT_ONE : Btn.ICON_REPEAT;
-        for (Btn b : new Btn[] { prevBtn, shuffleBtn, playBtn, repeatBtn, nextBtn }) b.invalidate();
+        muteBtn.icon = mute ? Btn.ICON_MUTED : Btn.ICON_SPEAKER;
+        muteBtn.label = mute ? "Unmute" : "Mute";
+        muteBtn.fg = mute ? C_AMBER : C_TEXT;
+        for (Btn b : actionButtons()) b.invalidate();
 
         int maxv = maxVolume > 0 ? maxVolume : 100;
         volBar.steps = maxv;

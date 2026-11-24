@@ -1,5 +1,10 @@
 # Android kiosk app — changelog
 
+## 1.7 (versionCode 10)
+- Action row is now Prev · Shuffle · Settings · Pause · Mute · Repeat · Next.
+  Settings opens the settings (PIN if set); Mute toggles mute and turns amber ("Unmute") while muted.
+- AUX / Optical / USB: the action row stays, showing only Settings and Mute in their usual places.
+
 ## 1.6 (versionCode 9)
 - Playback controls row (Prev / Shuffle / Pause / Repeat / Next) fades out after 10 s without a
   touch and keeps its space, so nothing jumps. Any touch brings it back; a tap on the hidden row
