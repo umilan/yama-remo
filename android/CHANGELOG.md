@@ -1,5 +1,10 @@
 # Android kiosk app — changelog
 
+## 1.22.1 (versionCode 29)
+- Fix: no tab was highlighted when the speaker plays from a source without a tab (Spotify, Server,
+  USB, TIDAL…). A white tab with that source's name now appears before OFF while it's active.
+- Readable names for the speaker's other inputs.
+
 ## 1.22 (versionCode 28)
 - Updates: the app bundles 23 current root CA certificates (Let's Encrypt ISRG, Google GTS, DigiCert
   G2/G3, Sectigo/USERTrust, Amazon, GlobalSign…) and trusts them in addition to Android 4.2's own

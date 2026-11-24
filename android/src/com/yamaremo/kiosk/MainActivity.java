@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
     long volumeHoldUntil;
 
     // views
-    Btn offBtn, prevBtn, shuffleBtn, settingsBtn, playBtn, muteBtn, repeatBtn, nextBtn, volDn, volUp, updateBtn;
+    Btn otherTab, offBtn, prevBtn, shuffleBtn, settingsBtn, playBtn, muteBtn, repeatBtn, nextBtn, volDn, volUp, updateBtn;
     Btn[] srcBtns = new Btn[SRC_ID.length];
     TextView trackText, artistText, stationText, clockText, dateText, settingsText, ipText;
     android.widget.FrameLayout bottom;
@@ -350,6 +350,11 @@ public class MainActivity extends Activity {
             srcBtns[i] = t;
             tabs.addView(t, weight());
         }
+        // shows the current source when it isn't one of the tabs (Spotify, Server, USB...)
+        otherTab = new Btn(this);
+        otherTab.fg = C_TEXT;
+        otherTab.setVisibility(View.GONE);
+        tabs.addView(otherTab, weight());
         offBtn = new Btn(this);
         offBtn.label = "OFF";
         offBtn.setOnClickListener(new View.OnClickListener() {
@@ -593,10 +598,28 @@ public class MainActivity extends Activity {
         return t;
     }
 
+    static final String[][] OTHER_SOURCES = {
+            { "usb", "USB" }, { "spotify", "Spotify" }, { "server", "Server" }, { "tidal", "TIDAL" },
+            { "deezer", "Deezer" }, { "qobuz", "Qobuz" }, { "amazon_music", "Amazon Music" },
+            { "napster", "Napster" }, { "pandora", "Pandora" }, { "siriusxm", "SiriusXM" },
+            { "juke", "JUKE" }, { "radiko", "radiko" }, { "alexa", "Alexa" }, { "mc_link", "MusicCast Link" },
+            { "tuner", "Tuner" }, { "line_in", "Line In" }, { "line1", "Line 1" }, { "line2", "Line 2" },
+            { "line3", "Line 3" }, { "coaxial", "Coaxial" }, { "hdmi", "HDMI" }, { "tv", "TV" },
+            { "phono", "Phono" }, { "cd", "CD" }, { "bluetooth", "Bluetooth" },
+    };
+
     String sourceLabel(String id) {
         for (int i = 0; i < SRC_ID.length; i++) if (SRC_ID[i].equals(id)) return SRC_LABEL[i];
-        if ("usb".equals(id)) return "USB";
-        return id;
+        for (String[] o : OTHER_SOURCES) if (o[0].equals(id)) return o[1];
+        if (id == null || id.length() == 0) return "";
+        // unknown id: "some_input" -> "Some input"
+        String t = id.replace('_', ' ');
+        return Character.toUpperCase(t.charAt(0)) + t.substring(1);
+    }
+
+    boolean isTabSource(String id) {
+        for (String t : SRC_ID) if (t.equals(id)) return true;
+        return false;
     }
 
     final Runnable rerender = new Runnable() { public void run() { render(); } };
@@ -813,6 +836,10 @@ public class MainActivity extends Activity {
             srcBtns[i].invalidate();
         }
         offBtn.fg = on ? C_TAB_IDLE : C_TEXT;
+        boolean other = on && !TextUtils.isEmpty(input) && !isTabSource(input);
+        if (other) { otherTab.label = sourceLabel(input); otherTab.invalidate(); }
+        int ov = other ? View.VISIBLE : View.GONE;
+        if (otherTab.getVisibility() != ov) otherTab.setVisibility(ov);
         offBtn.invalidate();
 
         showClock(!on);
