@@ -344,6 +344,7 @@ public class MainActivity extends Activity {
 
         // --- source tabs + OFF
         LinearLayout tabs = row();
+        tabsRow = tabs;
         for (int i = 0; i < SRC_ID.length; i++) {
             final int idx = i;
             Btn t = new Btn(this);
@@ -411,6 +412,7 @@ public class MainActivity extends Activity {
                 new android.view.GestureDetector.SimpleOnGestureListener() {
                     @Override public boolean onDown(android.view.MotionEvent e) { return true; }
                     @Override public boolean onDoubleTap(android.view.MotionEvent e) { showSettings(true); return true; }
+                    @Override public boolean onSingleTapConfirmed(android.view.MotionEvent e) { toggleChrome(); return true; }
                 });
         clockBox.setOnTouchListener(new View.OnTouchListener() {
             public boolean onTouch(View v, android.view.MotionEvent e) { return gd.onTouchEvent(e); }
@@ -510,7 +512,10 @@ public class MainActivity extends Activity {
         updateBtn.fg = C_AMBER;
         updateBtn.textSize = 20;
         updateBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) { if (pendingUpdate != null) downloadAndInstall(pendingUpdate); }
+            public void onClick(View v) {
+                // shows "Update x.y" when one is waiting, otherwise the installed version (tap = check)
+                if (pendingUpdate != null) downloadAndInstall(pendingUpdate); else checkForUpdates(true);
+            }
         });
         ipText = text("", 20, C_DIM, true);
         ipText.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
@@ -826,6 +831,26 @@ public class MainActivity extends Activity {
     };
 
     boolean switching; // crossfade between the playing screen and the clock in progress
+    LinearLayout tabsRow;
+    boolean chromeHidden; // clock screen: tabs and footer hidden by a tap
+
+    /** Clock screen: a tap on the time/date fades the tabs and the footer out or back in. */
+    void toggleChrome() {
+        chromeHidden = !chromeHidden;
+        for (final View v : new View[] { tabsRow, offRow }) {
+            v.animate().cancel();
+            if (!chromeHidden) {
+                v.setVisibility(View.VISIBLE);
+                v.animate().alpha(1f).setDuration(250).setListener(null);
+            } else {
+                v.animate().alpha(0f).setDuration(250).setListener(new android.animation.AnimatorListenerAdapter() {
+                    @Override public void onAnimationEnd(android.animation.Animator a) {
+                        if (chromeHidden) v.setVisibility(View.INVISIBLE); // keeps the clock in place
+                    }
+                });
+            }
+        }
+    }
 
     /** Switches between the playing screen and the clock with a short crossfade. */
     void showClock(final boolean show) {
@@ -855,6 +880,11 @@ public class MainActivity extends Activity {
     }
 
     void applyScreen(boolean show) {
+        if (!show && chromeHidden) {
+            // speaker on: the tabs are needed again
+            chromeHidden = false;
+            for (View v : new View[] { tabsRow, offRow }) { v.animate().cancel(); v.setAlpha(1f); v.setVisibility(View.VISIBLE); }
+        }
         playBox.setVisibility(show ? View.GONE : View.VISIBLE);
         clockBox.setVisibility(show ? View.VISIBLE : View.GONE);
         volRow.setVisibility(show ? View.GONE : View.VISIBLE);
@@ -960,8 +990,9 @@ public class MainActivity extends Activity {
         else if (!everPolled) { ipText.setText("IP " + ip() + " · connecting…"); ipText.setTextColor(C_DIM); }
         else if (!connected) { ipText.setText("IP " + ip() + " · not connected"); ipText.setTextColor(C_RED); }
         else { ipText.setText("IP " + ip()); ipText.setTextColor(C_DIM); }
-        updateBtn.label = pendingUpdate != null ? "Update " + pendingUpdate.versionName : "";
-        updateBtn.setEnabled(pendingUpdate != null);
+        updateBtn.label = pendingUpdate != null ? "Update " + pendingUpdate.versionName : "v" + versionName();
+        updateBtn.fg = pendingUpdate != null ? C_AMBER : C_TAB_IDLE;
+        updateBtn.textSize = pendingUpdate != null ? 20 : 16;
         updateBtn.invalidate();
     }
 

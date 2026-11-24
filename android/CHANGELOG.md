@@ -1,5 +1,12 @@
 # Android kiosk app — changelog
 
+## 1.27 (versionCode 35)
+- Clock screen: a single tap on the time/date fades the tabs and the footer out or back in
+  (0.25 s); the clock stays in place. Double-tap still opens settings. Turning the speaker on
+  brings the tabs back.
+- Footer shows the app version in the middle (dimmed); tap it to check for updates. When an
+  update is waiting, the amber "Update x.y" takes its place.
+
 ## 1.26.1 (versionCode 34)
 - Fix: "Download failed: SSL handshake failure" when updating. The APK download now tries every
   source in turn (jsDelivr HTTPS, jsDelivr HTTP, githack, GitHub) and asks jsDelivr to fetch the
