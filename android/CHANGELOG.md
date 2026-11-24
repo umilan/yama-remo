@@ -1,5 +1,9 @@
 # Android kiosk app — changelog
 
+## 1.19.1 (versionCode 24)
+- "Check for updates now" reports what it saw: installed version, the version on the server, which
+  source answered, and whether clearing jsDelivr's cache worked.
+
 ## 1.19 (versionCode 23)
 - Inactive tabs in the top row (sources and OFF) dimmed to 25 % of the active white.
 

@@ -52,6 +52,9 @@ class Updater {
         int versionCode;
         String versionName;
         String apkUrl;
+        boolean newer;       // newer than the installed app
+        String source = "";  // host that answered
+        String purge = "";   // result of clearing jsDelivr's cache
     }
 
     /**
@@ -62,11 +65,14 @@ class Updater {
     static final String PURGE_URL =
             "https://purge.jsdelivr.net/gh/umilan/yama-remo@main/android/version.json";
 
+    /** Always returns what the server has; Info.newer says whether it's an update. */
     static Info check(Context ctx, String customUrl) throws Exception {
         boolean auto = customUrl == null || customUrl.length() == 0;
         String[] urls = auto ? AUTO_URLS : new String[] { customUrl };
+        String purge = "";
         if (auto) {
-            try { get(PURGE_URL); Thread.sleep(1500); } catch (Exception ignored) { /* the check still works, maybe with a stale copy */ }
+            try { get(PURGE_URL); purge = "cache cleared"; Thread.sleep(1500); }
+            catch (Exception e) { purge = "cache clear failed (" + short_(e) + ")"; } // the check still works, maybe with a stale copy
         }
         StringBuilder errors = new StringBuilder();
         for (String jsonUrl : urls) {
@@ -78,7 +84,10 @@ class Updater {
                 i.versionName = j.optString("versionName", String.valueOf(i.versionCode));
                 i.apkUrl = new URL(new URL(jsonUrl), j.optString("apk", "yamaremo-kiosk.apk")).toString();
                 int current = ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0).versionCode;
-                return i.versionCode > current ? i : null;
+                i.newer = i.versionCode > current;
+                i.source = new URL(jsonUrl).getProtocol() + "://" + new URL(jsonUrl).getHost();
+                i.purge = purge;
+                return i;
             } catch (Exception e) {
                 if (errors.length() > 0) errors.append("\n");
                 errors.append(new URL(jsonUrl).getHost()).append(": ").append(short_(e));

@@ -1080,12 +1080,13 @@ public class MainActivity extends Activity {
                 ui.post(new Runnable() {
                     public void run() {
                         updateBusy = false;
-                        pendingUpdate = fi;
+                        pendingUpdate = fi != null && fi.newer ? fi : null;
                         render();
                         if (!manual) return;
                         if (fe != null) toast("Update check failed: " + fe);
-                        else if (fi == null) toast("Up to date (" + versionName() + ")");
-                        else toast("Version " + fi.versionName + " is available \u2013 tap Update at the bottom of the clock screen");
+                        else if (fi != null) toast((fi.newer ? "Version " + fi.versionName + " is available \u2013 tap Update at the bottom of the clock screen"
+                                : "Up to date") + "\nInstalled " + versionName() + ", server has " + fi.versionName
+                                + " (" + fi.source + (fi.purge.length() > 0 ? ", " + fi.purge : "") + ")");
                     }
                 });
             }
