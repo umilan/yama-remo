@@ -64,6 +64,7 @@ public class MainActivity extends Activity {
     static final String PREF_FOLLOWER = "follow_speaker";
     static final String PREF_GESTURES = "swipe_gestures";
     static final String PREF_FONT = "font";
+    static final String PREF_HIDE_NAV = "hide_nav_buttons";
 
     /** Follower mode: the speaker's reported state always wins (other apps control it too). */
     boolean follower() { return prefs.getBoolean(PREF_FOLLOWER, true); }
@@ -320,10 +321,30 @@ public class MainActivity extends Activity {
                     | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
                     | View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
         }
-        // On 4.2 the navigation bar can only be dimmed (low profile); hiding
-        // it there makes the first tap on any button just bring it back.
+        else if (prefs.getBoolean(PREF_HIDE_NAV, false)) {
+            // Android 4.1-4.3: hidden until the next touch, and that first touch only brings the
+            // buttons back. Layout flags keep the screen from jumping when they come and go.
+            flags |= View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_LAYOUT_STABLE;
+        }
+        // Otherwise on 4.2 the navigation bar is only dimmed (low profile).
         d.setSystemUiVisibility(flags);
+        if (!navListenerSet) {
+            navListenerSet = true;
+            d.setOnSystemUiVisibilityChangeListener(new View.OnSystemUiVisibilityChangeListener() {
+                public void onSystemUiVisibilityChange(int vis) {
+                    // buttons came back after a tap: hide them again after 3 s
+                    ui.removeCallbacks(rehideBars);
+                    if (Build.VERSION.SDK_INT < 19 && prefs.getBoolean(PREF_HIDE_NAV, false)
+                            && (vis & View.SYSTEM_UI_FLAG_HIDE_NAVIGATION) == 0)
+                        ui.postDelayed(rehideBars, 3000);
+                }
+            });
+        }
     }
+
+    boolean navListenerSet;
+    final Runnable rehideBars = new Runnable() { public void run() { if (resumed) hideSystemBars(); } };
 
     void applyScreenOn() {
         if (prefs.getBoolean(PREF_SCREEN_ON, true))
@@ -1105,6 +1126,7 @@ public class MainActivity extends Activity {
         final CheckBox hideLoc = new CheckBox(this);
         final CheckBox followCb = new CheckBox(this);
         final CheckBox gestCb = new CheckBox(this);
+        final CheckBox hideNavCb = new CheckBox(this);
         final EditText hideSecsEdit = new EditText(this);
         final CheckBox hideOn = new CheckBox(this);
         final EditText failLimitEdit = new EditText(this);
@@ -1174,6 +1196,12 @@ public class MainActivity extends Activity {
             gestCb.setText("Swipe gestures on the song area: drag up/down = volume, swipe left/right = next/previous");
             gestCb.setChecked(prefs.getBoolean(PREF_GESTURES, true));
             box.addView(gestCb);
+            if (Build.VERSION.SDK_INT < 19) {
+                hideNavCb.setText("Hide navigation buttons (Home, Back, Recent). The first tap only brings them "
+                        + "back; they hide again 3 s later");
+                hideNavCb.setChecked(prefs.getBoolean(PREF_HIDE_NAV, false));
+                box.addView(hideNavCb);
+            }
             TextView hl = new TextView(this);
             hideOn.setText("Hide playback controls when not touched");
             hideOn.setChecked(prefs.getBoolean(PREF_HIDE_ON, true));
@@ -1225,6 +1253,7 @@ public class MainActivity extends Activity {
                             e.putBoolean(PREF_HIDE_LOCATION, hideLoc.isChecked());
                             e.putBoolean(PREF_FOLLOWER, followCb.isChecked());
                             e.putBoolean(PREF_GESTURES, gestCb.isChecked());
+                            if (Build.VERSION.SDK_INT < 19) e.putBoolean(PREF_HIDE_NAV, hideNavCb.isChecked());
                             if (fontPick != null) {
                                 String newFont = Fonts.LIST[fontPick[0]][0];
                                 fontChanged = !newFont.equals(prefs.getString(PREF_FONT, "default"));

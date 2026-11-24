@@ -1,5 +1,10 @@
 # Android kiosk app — changelog
 
+## 1.33 (versionCode 41)
+- ADVANCED option (Android 4.1–4.3, off by default): "Hide navigation buttons". The Home/Back/Recent
+  bar is hidden; Android brings it back on the next tap (that tap doesn't reach the app), and the
+  app hides it again after 3 s. The layout no longer jumps when the bar comes and goes.
+
 ## 1.32 (versionCode 40)
 - Font picker in Kiosk settings ("Font", each option shown in its own font). Choices: Default
   (Roboto), Roboto Flex, Russo One, Saira, Rounded Mplus 1c, Rubik One. Applies to all text after Save.
