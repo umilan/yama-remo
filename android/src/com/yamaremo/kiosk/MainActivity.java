@@ -57,6 +57,7 @@ public class MainActivity extends Activity {
     static final String PREF_UPDATE_URL = "update_url";
     static final String PREF_COMPACT_VOLUME = "compact_volume";
     static final String PREF_HIDE_SECS = "hide_controls_secs";
+    static final String PREF_HIDE_ON = "hide_controls";
     static final String PREF_FAIL_LIMIT = "fail_limit";
     static final String PREF_HIDE_LOCATION = "hide_station_location";
     static final long UPDATE_EVERY_MS = 6L * 3600 * 1000;
@@ -173,7 +174,8 @@ public class MainActivity extends Activity {
     // ------------------------------------------------------------------
     // Auto-hide of the playback controls row
     // ------------------------------------------------------------------
-    int hideSecs() { return prefs.getInt(PREF_HIDE_SECS, 10); }
+    /** Seconds until the action row hides; 0 = never (checkbox off or 0 entered). */
+    int hideSecs() { return prefs.getBoolean(PREF_HIDE_ON, true) ? prefs.getInt(PREF_HIDE_SECS, 10) : 0; }
 
     int transportRowHeight; // remembered while the row is GONE
 
@@ -772,6 +774,7 @@ public class MainActivity extends Activity {
         final CheckBox compactVol = new CheckBox(this);
         final CheckBox hideLoc = new CheckBox(this);
         final EditText hideSecsEdit = new EditText(this);
+        final CheckBox hideOn = new CheckBox(this);
         final EditText failLimitEdit = new EditText(this);
         if (admin) {
             screenOn.setText("Keep screen on");
@@ -818,11 +821,18 @@ public class MainActivity extends Activity {
             hideLoc.setChecked(prefs.getBoolean(PREF_HIDE_LOCATION, true));
             box.addView(hideLoc);
             TextView hl = new TextView(this);
-            hl.setText("Hide playback controls after (seconds, 0 = never)");
+            hideOn.setText("Hide playback controls when not touched");
+            hideOn.setChecked(prefs.getBoolean(PREF_HIDE_ON, true));
+            hideOn.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener() {
+                public void onCheckedChanged(android.widget.CompoundButton b, boolean on) { hideSecsEdit.setEnabled(on); }
+            });
+            box.addView(hideOn);
+            hl.setText("Hide them after (seconds)");
             box.addView(hl);
             hideSecsEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
             hideSecsEdit.setSingleLine(true);
-            hideSecsEdit.setText(String.valueOf(hideSecs()));
+            hideSecsEdit.setText(String.valueOf(prefs.getInt(PREF_HIDE_SECS, 10)));
+            hideSecsEdit.setEnabled(hideOn.isChecked());
             box.addView(hideSecsEdit);
             TextView fl = new TextView(this);
             fl.setText("Show \"not connected\" after this many failed checks in a row (one check every 3 s)");
@@ -853,7 +863,8 @@ public class MainActivity extends Activity {
                             e.putString(PREF_UPDATE_URL, updateUrlEdit.getText().toString().trim());
                             e.putBoolean(PREF_COMPACT_VOLUME, compactVol.isChecked());
                             e.putBoolean(PREF_HIDE_LOCATION, hideLoc.isChecked());
-                            int hs = hideSecs();
+                            e.putBoolean(PREF_HIDE_ON, hideOn.isChecked());
+                            int hs = prefs.getInt(PREF_HIDE_SECS, 10);
                             try { hs = Math.max(0, Math.min(3600, Integer.parseInt(hideSecsEdit.getText().toString().trim()))); }
                             catch (NumberFormatException ignored) { }
                             e.putInt(PREF_HIDE_SECS, hs);
