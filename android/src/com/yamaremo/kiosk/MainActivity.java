@@ -891,6 +891,33 @@ public class MainActivity extends Activity {
         clockText.setTextSize(TypedValue.COMPLEX_UNIT_PX, px);
         fit(clockText, px / getResources().getDisplayMetrics().scaledDensity, 60, w * 0.78f);
         fit(dateText, 46, 20, w - dp(80));
+        // fonts differ a lot in line height (Rounded Mplus is much taller than Roboto):
+        // shrink the clock until clock + gap + date really fit the height
+        float dateH = lineHeight(dateText, true);
+        float gap = dp(14);
+        px = clockText.getTextSize();
+        float min = dp(60);
+        android.graphics.Paint p = new android.graphics.Paint(clockText.getPaint());
+        while (px > min) {
+            p.setTextSize(px);
+            android.graphics.Paint.FontMetrics fm = p.getFontMetrics();
+            if ((fm.descent - fm.ascent) + gap + dateH <= h - dp(4)) break;
+            px -= 4;
+        }
+        clockText.setTextSize(TypedValue.COMPLEX_UNIT_PX, px);
+        // same check for the playing screen: song + artist + station rows
+        float rows = lineHeight(trackText, true) + lineHeight(artistText, true) + lineHeight(stationText, true) + dp(26);
+        if (rows > h) {
+            float k = Math.max(0.5f, h / rows);
+            trackText.setTextSize(TypedValue.COMPLEX_UNIT_PX, trackText.getTextSize() * k);
+            artistText.setTextSize(TypedValue.COMPLEX_UNIT_PX, artistText.getTextSize() * k);
+        }
+    }
+
+    /** Height a single-line TextView needs with its current font and size. */
+    static float lineHeight(TextView t, boolean withPadding) {
+        android.graphics.Paint.FontMetrics fm = t.getPaint().getFontMetrics();
+        return withPadding ? fm.bottom - fm.top : fm.descent - fm.ascent;
     }
 
     void updateClock() {

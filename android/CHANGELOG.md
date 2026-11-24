@@ -1,5 +1,10 @@
 # Android kiosk app — changelog
 
+## 1.33.1 (versionCode 42)
+- Fix: with tall fonts (e.g. Rounded Mplus 1c) the date under the clock was cut off. The clock size
+  is now computed from the chosen font's real line heights so clock, gap and date always fit;
+  the song/artist rows get the same check.
+
 ## 1.33 (versionCode 41)
 - ADVANCED option (Android 4.1–4.3, off by default): "Hide navigation buttons". The Home/Back/Recent
   bar is hidden; Android brings it back on the next tap (that tap doesn't reach the app), and the
