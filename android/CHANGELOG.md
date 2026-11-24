@@ -1,5 +1,11 @@
 # Android kiosk app — changelog
 
+## 1.10 (versionCode 13)
+- Radio station names without the trailing location: "Rádio_FM (Bratislava/Slovak)" → "Rádio_FM".
+  ADVANCED checkbox "Hide location in radio station names" (on by default).
+- Radio titles like "Gabriels-Blood On My Hands" (dash without spaces) are split into artist and
+  song when the text has exactly one dash.
+
 ## 1.9 (versionCode 12)
 - Far fewer false "not connected" screens:
   - The screen switches to "not connected" only after 3 failed checks in a row (about 10 s);

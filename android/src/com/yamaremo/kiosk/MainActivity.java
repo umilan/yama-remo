@@ -58,6 +58,7 @@ public class MainActivity extends Activity {
     static final String PREF_COMPACT_VOLUME = "compact_volume";
     static final String PREF_HIDE_SECS = "hide_controls_secs";
     static final String PREF_FAIL_LIMIT = "fail_limit";
+    static final String PREF_HIDE_LOCATION = "hide_station_location";
     static final long UPDATE_EVERY_MS = 6L * 3600 * 1000;
 
     static final int C_BG = 0xFF000000;
@@ -538,7 +539,18 @@ public class MainActivity extends Activity {
             if (i > 0 && i + sep.length() < t.length())
                 return new String[] { t.substring(0, i).trim(), t.substring(i + sep.length()).trim() };
         }
+        // some stations send "Artist-Song" without spaces: split only if there is exactly one dash
+        int d = t.indexOf('-');
+        if (d >= 2 && d == t.lastIndexOf('-') && t.length() - d - 1 >= 2)
+            return new String[] { t.substring(0, d).trim(), t.substring(d + 1).trim() };
         return new String[] { "", t };
+    }
+
+    /** "Rádio_FM (Bratislava/Slovak)" → "Rádio_FM": drops a trailing part in brackets. */
+    static String stripLocation(String station) {
+        if (station == null) return "";
+        String s = station.replaceAll("\\s*[(\\[][^()\\[\\]]*[)\\]]\\s*$", "").trim();
+        return s.length() > 0 ? s : station.trim();
     }
 
     /** Inputs with no tracks, so no transport row (same list as the web remote). */
@@ -620,6 +632,7 @@ public class MainActivity extends Activity {
             if ("net_radio".equals(input)) {
                 // radio sends one "Artist - Song" text; the artist field holds the station
                 station = !TextUtils.isEmpty(artist) ? artist : album;
+                if (prefs.getBoolean(PREF_HIDE_LOCATION, true)) station = stripLocation(station);
                 String[] parts = splitArtistSong(track);
                 by = parts[0];
                 song = parts[1];
@@ -721,6 +734,7 @@ public class MainActivity extends Activity {
         final EditText pinEdit = new EditText(this);
         final EditText updateUrlEdit = new EditText(this);
         final CheckBox compactVol = new CheckBox(this);
+        final CheckBox hideLoc = new CheckBox(this);
         final EditText hideSecsEdit = new EditText(this);
         final EditText failLimitEdit = new EditText(this);
         if (admin) {
@@ -764,6 +778,9 @@ public class MainActivity extends Activity {
             compactVol.setText("Volume bar without bottom padding");
             compactVol.setChecked(prefs.getBoolean(PREF_COMPACT_VOLUME, true));
             box.addView(compactVol);
+            hideLoc.setText("Hide location in radio station names, e.g. \"(Bratislava/Slovak)\"");
+            hideLoc.setChecked(prefs.getBoolean(PREF_HIDE_LOCATION, true));
+            box.addView(hideLoc);
             TextView hl = new TextView(this);
             hl.setText("Hide playback controls after (seconds, 0 = never)");
             box.addView(hl);
@@ -799,6 +816,7 @@ public class MainActivity extends Activity {
                             e.putString(PREF_PIN, pinEdit.getText().toString().trim());
                             e.putString(PREF_UPDATE_URL, updateUrlEdit.getText().toString().trim());
                             e.putBoolean(PREF_COMPACT_VOLUME, compactVol.isChecked());
+                            e.putBoolean(PREF_HIDE_LOCATION, hideLoc.isChecked());
                             int hs = hideSecs();
                             try { hs = Math.max(0, Math.min(3600, Integer.parseInt(hideSecsEdit.getText().toString().trim()))); }
                             catch (NumberFormatException ignored) { }
