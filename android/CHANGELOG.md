@@ -1,5 +1,10 @@
 # Android kiosk app — changelog
 
+## 1.42 (versionCode 51)
+- Messages triggered by gestures (swipe up/down/left/right, pinch, double tap) are shown in the
+  accent colour, the amber used for Muted, on both lines. The colour is one constant, `C_ACCENT`
+  in `MainActivity.java`.
+
 ## 1.41 (versionCode 50)
 - Slider animation for horizontal swipes: the now-playing text follows the finger; past 60 dp it
   slides out in that direction and the new one slides in from the other side (showing "Next" /

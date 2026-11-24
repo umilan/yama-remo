@@ -78,7 +78,9 @@ public class MainActivity extends Activity {
     static final int C_DOT_OFF = 0xFF4E4E4E;  // empty volume dots
     static final int C_TAB_IDLE = C_DIM;      // inactive top tabs
     static final int C_RED = 0xFFC83C3C;
-    static final int C_AMBER = 0xFFE0A030;
+    /** Accent colour: Muted, Update, and messages triggered by gestures (swipe, pinch, double tap). */
+    static final int C_ACCENT = 0xFFE0A030;
+    static final int C_AMBER = C_ACCENT;
 
     static final String[] SRC_ID = { "airplay", "aux", "optical", "bluetooth", "net_radio" };
     static final String[] SRC_LABEL = { "AirPlay", "AUX", "Optical", "Bluetooth", "Radio" };
@@ -832,7 +834,7 @@ public class MainActivity extends Activity {
     void flash(String text, int color, long ms) {
         flashSub = flashHint;
         flashText = text;
-        flashColor = color;
+        flashColor = flashHint != null ? C_ACCENT : color; // gesture messages in the accent colour
         flashUntil = System.currentTimeMillis() + ms;
         ui.removeCallbacks(flashEnd);
         ui.postDelayed(flashEnd, ms + 20);
@@ -1220,7 +1222,7 @@ public class MainActivity extends Activity {
             if (System.currentTimeMillis() < flashUntil) {
                 trackText.setText(flashText);
                 trackText.setTextColor(flashColor);
-                if (flashSub != null) { artistText.setText(flashSub); artistText.setTextColor(C_DIM); }
+                if (flashSub != null) { artistText.setText(flashSub); artistText.setTextColor(C_ACCENT); }
             } else if (mute) {
                 trackText.setText("Muted");
                 trackText.setTextColor(C_AMBER);
