@@ -1,5 +1,13 @@
 # Android kiosk app — changelog
 
+## 1.18 (versionCode 22)
+- The top (song) row carries short messages; the artist row always shows the artist:
+  - "Muted" (amber) while muted; "Unmuted" briefly when unmuting.
+  - "Volume 34" for 1.5 s whenever the volume changes (−/+, dots, hardware keys), with "· max" at
+    the top and "· muted" while muted.
+  - "Shuffle on/off", "Repeat all/one/off".
+  - Radio notices ("No saved stations…", "Couldn't switch to …") instead of pop-up toasts.
+
 ## 1.17 (versionCode 21)
 - Tapping the now-playing area toggles the action row: hides it right away when visible, shows it
   when hidden. Works even with auto-hide switched off. Touches elsewhere still only show it.

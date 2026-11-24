@@ -24,8 +24,9 @@ and `proxy.py` isn't needed.
 - Speaker off or unreachable: a big clock with the date in capitals (`MONDAY, 2026 / 11 / 23`).
   The bottom row shows **Settings** on the left, the speaker IP on the right (red when it can't
   be reached) and **Update x.y** in the middle when a newer version exists.
-- When the speaker is muted (for example from the MusicCast app), the dots and artist line turn
-  amber, and the Mute button shows Unmute.
+- Short messages appear in the top (song) row for a moment: volume level while you change it,
+  Shuffle/Repeat state, radio notices. While muted it shows "Muted" in amber, the dots turn amber
+  and the Mute button shows Unmute.
 
 ## Kiosk mode
 

@@ -432,12 +432,17 @@ public class MainActivity extends Activity {
             }
         });
         shuffleBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) { shuffle = !shuffle; render(); send("netusb/toggleShuffle", true); }
+            public void onClick(View v) {
+                shuffle = !shuffle;
+                flash(shuffle ? "Shuffle on" : "Shuffle off", C_TEXT, 1500);
+                send("netusb/toggleShuffle", true);
+            }
         });
         repeatBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 repeatMode = "off".equals(repeatMode) ? "all" : ("all".equals(repeatMode) ? "one" : "off");
-                render(); send("netusb/toggleRepeat", true);
+                flash("off".equals(repeatMode) ? "Repeat off" : ("one".equals(repeatMode) ? "Repeat one" : "Repeat all"), C_TEXT, 1500);
+                send("netusb/toggleRepeat", true);
             }
         });
         playBtn.setOnClickListener(new View.OnClickListener() {
@@ -450,7 +455,8 @@ public class MainActivity extends Activity {
         muteBtn = iconBtn(Btn.ICON_SPEAKER, "Mute", null);
         muteBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                mute = !mute; render();
+                mute = !mute;
+                if (mute) { flashUntil = 0; render(); } else flash("Unmuted", C_TEXT, 1200);
                 send("main/setMute?enable=" + (mute ? "true" : "false"), true);
             }
         });
@@ -562,6 +568,21 @@ public class MainActivity extends Activity {
 
     final Runnable rerender = new Runnable() { public void run() { render(); } };
 
+    // short message shown in the top (song) row, then the song comes back
+    String flashText = "";
+    int flashColor;
+    long flashUntil;
+    final Runnable flashEnd = new Runnable() { public void run() { render(); } };
+
+    void flash(String text, int color, long ms) {
+        flashText = text;
+        flashColor = color;
+        flashUntil = System.currentTimeMillis() + ms;
+        ui.removeCallbacks(flashEnd);
+        ui.postDelayed(flashEnd, ms + 20);
+        render();
+    }
+
     // ------------------------------------------------------------------
     // Radio: Prev/Next step through the speaker's saved radio presets
     // ------------------------------------------------------------------
@@ -604,7 +625,7 @@ public class MainActivity extends Activity {
                 final java.util.List<String[]> presets = radioPresets;
                 if (presets.isEmpty()) {
                     ui.post(new Runnable() { public void run() {
-                        toast("No saved radio stations \u2013 add favourites in the MusicCast app first");
+                        flash("No saved stations \u2013 add favourites in MusicCast", C_AMBER, 4000);
                     } });
                     return;
                 }
@@ -628,7 +649,7 @@ public class MainActivity extends Activity {
                 } });
                 final boolean ok = request("netusb/recallPreset?zone=main&num=" + target[0]) != null;
                 ui.post(new Runnable() { public void run() {
-                    if (!ok) { stationChangedAt = 0; toast("Couldn't switch to " + cleanStation(target[1])); }
+                    if (!ok) { stationChangedAt = 0; flash("Couldn't switch to " + cleanStation(target[1]), C_AMBER, 3000); }
                     render();
                     ui.postDelayed(new Runnable() { public void run() { poll(); } }, 1200);
                 } });
@@ -790,24 +811,32 @@ public class MainActivity extends Activity {
                 trackText.setText(song);
                 trackText.setTextColor(C_GRAY);
                 artistColor = C_TEXT;
-                artistText.setText(mute ? "Muted" : (TextUtils.isEmpty(by) ? sourceLabel(input) : by));
+                artistText.setText(TextUtils.isEmpty(by) ? sourceLabel(input) : by);
             } else if (isLineIn(input)) {
                 trackText.setText(sourceLabel(input));
                 trackText.setTextColor(C_TEXT);
-                artistText.setText(mute ? "Muted" : "External input");
+                artistText.setText("External input");
             } else {
                 // nothing to show yet: say what the speaker is doing
                 String[] st = situation(station);
                 trackText.setText(st[0]);
                 trackText.setTextColor(C_GRAY);
-                artistText.setText(mute ? "Muted" : st[1]);
+                artistText.setText(st[1]);
                 stationText.setVisibility(View.GONE);
                 // a "Turning on" / "Switching" message expires on its own
                 ui.removeCallbacks(rerender);
                 if (System.currentTimeMillis() - Math.max(powerChangedAt, inputChangedAt) < SETTLE_MS)
                     ui.postDelayed(rerender, 1000);
             }
-            artistText.setTextColor(mute ? C_AMBER : artistColor);
+            artistText.setTextColor(artistColor);
+            // the top row also carries short messages: volume, shuffle/repeat, radio notices, Muted
+            if (System.currentTimeMillis() < flashUntil) {
+                trackText.setText(flashText);
+                trackText.setTextColor(flashColor);
+            } else if (mute) {
+                trackText.setText("Muted");
+                trackText.setTextColor(C_AMBER);
+            }
             fitTexts();
         }
 
@@ -1129,7 +1158,7 @@ public class MainActivity extends Activity {
         int v = Math.max(0, Math.min(maxv, volume + delta));
         volume = v;
         volumeHoldUntil = System.currentTimeMillis() + 2500;
-        render();
+        flash("Volume " + v + (v == maxv ? " \u00b7 max" : "") + (mute ? " \u00b7 muted" : ""), mute ? C_AMBER : C_TEXT, 1500);
         // coalesce: only the latest value is sent
         if (pendingVolume.getAndSet(v) < 0) {
             net.execute(new Runnable() {
