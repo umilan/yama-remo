@@ -1,5 +1,9 @@
 # Android kiosk app — changelog
 
+## 1.29 (versionCode 37)
+- Dimmed text back to 50 % of the active white: inactive tabs, footer (Settings, version, IP),
+  Shuffle/Repeat when off, radio station name. Empty volume dots unchanged.
+
 ## 1.28 (versionCode 36)
 - "Check for updates now" shows "Checking for updates…" in the button itself (disabled while it
   runs) instead of a small toast.

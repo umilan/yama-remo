@@ -44,7 +44,7 @@ public class VolumeBar extends View {
                 p.setColor(color);
                 c.drawRect(x - on, cy - onH, x + on, cy + onH, p);
             } else {
-                p.setColor(MainActivity.C_DIM);
+                p.setColor(MainActivity.C_DOT_OFF);
                 c.drawRect(x - off, cy - off, x + off, cy + off, p);
             }
         }

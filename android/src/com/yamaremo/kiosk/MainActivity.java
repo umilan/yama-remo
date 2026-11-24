@@ -70,8 +70,9 @@ public class MainActivity extends Activity {
     static final int C_BG = 0xFF000000;
     static final int C_TEXT = 0xFFE8E8EA;
     static final int C_GRAY = 0xFF8C8C8C;   // inactive tabs, artist
-    static final int C_DIM = 0xFF4E4E4E;
-    static final int C_TAB_IDLE = 0xFF3A3A3A; // inactive top tabs: 25 % of the active white    // off-state tabs, shuffle/repeat off, empty volume dots
+    static final int C_DIM = 0xFF747474;      // dimmed text: 50 % of the active white
+    static final int C_DOT_OFF = 0xFF4E4E4E;  // empty volume dots
+    static final int C_TAB_IDLE = C_DIM;      // inactive top tabs    // off-state tabs, shuffle/repeat off, empty volume dots
     static final int C_RED = 0xFFC83C3C;
     static final int C_AMBER = 0xFFE0A030;
 
