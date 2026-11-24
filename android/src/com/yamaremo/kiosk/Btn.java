@@ -107,16 +107,16 @@ public class Btn extends View {
             if (caption) {
                 paint.setStyle(Paint.Style.FILL);
                 paint.setColor(fg);
-                paint.setTextSize(sp(15));
+                paint.setTextSize(sp(15) * Fonts.scale);
                 paint.setTypeface(Fonts.regular);
                 paint.setTextAlign(Paint.Align.CENTER);
-                c.drawText(label, cx, iy + s / 2 + dp(14) + sp(15) * 0.8f, paint);
+                c.drawText(label, cx, iy + s / 2 + dp(14) + sp(15) * Fonts.scale * 0.8f, paint);
             }
             return;
         }
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(fg);
-        paint.setTextSize(sp(textSize));
+        paint.setTextSize(sp(textSize) * Fonts.scale);
         paint.setTypeface(bold ? Fonts.bold : Fonts.regular);
         paint.setTextAlign(Paint.Align.CENTER);
         String t = label;

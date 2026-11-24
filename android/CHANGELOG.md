@@ -1,5 +1,11 @@
 # Android kiosk app — changelog
 
+## 1.38 (versionCode 47)
+- Pinch out / in anywhere scales all text (60–160 %), live, with "Text size 120 % / (pinching)".
+- Double-tap the song area resets the text size to 100 %. A single tap there still shows/hides the
+  action row, now after the double-tap window (~0.3 s).
+- ADVANCED: "Text size (%)" field with "Reset to 100 %".
+
 ## 1.37 (versionCode 46)
 - Clock screen footer (Settings · version · IP) sits on the bottom edge of the app area instead of
   centred in its row; with "Hide navigation buttons" on, that is the very bottom of the screen.

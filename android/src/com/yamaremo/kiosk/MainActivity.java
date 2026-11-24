@@ -65,6 +65,7 @@ public class MainActivity extends Activity {
     static final String PREF_GESTURES = "swipe_gestures";
     static final String PREF_FONT = "font";
     static final String PREF_HIDE_NAV = "hide_nav_buttons";
+    static final String PREF_TEXT_SCALE = "text_scale";
 
     /** Follower mode: the speaker's reported state always wins (other apps control it too). */
     boolean follower() { return prefs.getBoolean(PREF_FOLLOWER, true); }
@@ -131,6 +132,7 @@ public class MainActivity extends Activity {
         super.onCreate(b);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         Fonts.apply(this, prefs.getString(PREF_FONT, "default"));
+        Fonts.scale = prefs.getFloat(PREF_TEXT_SCALE, 1f);
         new Thread(new Runnable() { public void run() { Updater.init(getApplicationContext()); } }).start();
         // Android 4.x reuses dead pooled HTTP connections, which makes random requests fail
         System.setProperty("http.keepAlive", "false");
@@ -276,6 +278,19 @@ public class MainActivity extends Activity {
     @Override
     public boolean dispatchTouchEvent(android.view.MotionEvent e) {
         int a = e.getActionMasked();
+        // two fingers: pinch scales the text; the views stop getting this gesture
+        scaleDetector().onTouchEvent(e);
+        if (a == android.view.MotionEvent.ACTION_POINTER_DOWN && !pinching) {
+            pinching = true;
+            android.view.MotionEvent c = android.view.MotionEvent.obtain(e);
+            c.setAction(android.view.MotionEvent.ACTION_CANCEL);
+            super.dispatchTouchEvent(c);
+            c.recycle();
+        }
+        if (pinching) {
+            if (a == android.view.MotionEvent.ACTION_UP || a == android.view.MotionEvent.ACTION_CANCEL) pinching = false;
+            return true;
+        }
         if (a == android.view.MotionEvent.ACTION_DOWN) {
             // a tap where the hidden row is only reveals it, it doesn't press a button
             boolean hiddenHit = transportAllowed && !transportAwake && hitsHiddenRow(e);
@@ -445,7 +460,7 @@ public class MainActivity extends Activity {
                 }
                 case android.view.MotionEvent.ACTION_UP: {
                     float dx = e.getX() - x0;
-                    if (mode == 0) v.performClick();
+                    if (mode == 0) tapOnNowPlaying(v, e);
                     else if (mode == 2 && Math.abs(dx) > dp(60)) {                          // swipe left = next
                         flashHint = dx < 0 ? "(swiping left)" : "(swiping right)";
                         skip(dx < 0 ? +1 : -1);
@@ -651,6 +666,26 @@ public class MainActivity extends Activity {
         return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
     }
 
+    long lastTapAt;
+    float lastTapX, lastTapY;
+    Runnable pendingTap;
+
+    /** Single tap toggles the action row (after the double-tap window); double tap resets text size. */
+    void tapOnNowPlaying(final View v, android.view.MotionEvent e) {
+        long now = android.os.SystemClock.uptimeMillis();
+        int timeout = android.view.ViewConfiguration.getDoubleTapTimeout();
+        if (pendingTap != null && now - lastTapAt < timeout
+                && Math.abs(e.getX() - lastTapX) < dp(40) && Math.abs(e.getY() - lastTapY) < dp(40)) {
+            ui.removeCallbacks(pendingTap);
+            pendingTap = null;
+            resetTextScale();
+            return;
+        }
+        lastTapAt = now; lastTapX = e.getX(); lastTapY = e.getY();
+        pendingTap = new Runnable() { public void run() { pendingTap = null; v.performClick(); } };
+        ui.postDelayed(pendingTap, timeout);
+    }
+
     /** Next (+1) / previous (-1): radio stations on Radio, tracks elsewhere. */
     void skip(int dir) {
         if (!connected || !powerOn) return;
@@ -692,10 +727,16 @@ public class MainActivity extends Activity {
         return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
     }
 
+    // every text with its base size, so a new text scale can be applied live
+    final java.util.List<TextView> scaledTexts = new java.util.ArrayList<TextView>();
+    final java.util.List<Float> baseSizes = new java.util.ArrayList<Float>();
+
     TextView text(String s, float sp, int color, boolean bold) {
         TextView t = new TextView(this);
         t.setText(s);
-        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
+        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp * Fonts.scale);
+        scaledTexts.add(t);
+        baseSizes.add(sp);
         t.setTextColor(color);
         t.setSingleLine(true);
         t.setEllipsize(TextUtils.TruncateAt.END);
@@ -901,13 +942,14 @@ public class MainActivity extends Activity {
         View centre = (View) clockBox.getParent();
         float w = centre.getWidth(), h = centre.getHeight();
         if (w <= 0) return;
-        fit(trackText, 68, 30, w - dp(80));
-        fit(artistText, 48, 24, w - dp(80));
-        // clock: about three quarters of the width, limited by the height
-        float px = Math.min(h * 0.62f, 400 * getResources().getDisplayMetrics().density);
+        float k = Fonts.scale;
+        fit(trackText, 68 * k, 30 * Math.min(1f, k), w - dp(80));
+        fit(artistText, 48 * k, 24 * Math.min(1f, k), w - dp(80));
+        // clock: about three quarters of the width (scaled), limited by the height
+        float px = Math.min(h * 0.62f * k, 400 * getResources().getDisplayMetrics().density);
         clockText.setTextSize(TypedValue.COMPLEX_UNIT_PX, px);
-        fit(clockText, px / getResources().getDisplayMetrics().scaledDensity, 60, w * 0.78f);
-        fit(dateText, 46, 20, w - dp(80));
+        fit(clockText, px / getResources().getDisplayMetrics().scaledDensity, 60 * Math.min(1f, k), w * Math.min(0.95f, 0.78f * k));
+        fit(dateText, 46 * k, 20 * Math.min(1f, k), w - dp(80));
         // fonts differ a lot in line height (Rounded Mplus is much taller than Roboto):
         // shrink the clock until clock + gap + date really fit the height
         float dateH = lineHeight(dateText, true);
@@ -925,10 +967,57 @@ public class MainActivity extends Activity {
         // same check for the playing screen: song + artist + station rows
         float rows = lineHeight(trackText, true) + lineHeight(artistText, true) + lineHeight(stationText, true) + dp(26);
         if (rows > h) {
-            float k = Math.max(0.5f, h / rows);
-            trackText.setTextSize(TypedValue.COMPLEX_UNIT_PX, trackText.getTextSize() * k);
-            artistText.setTextSize(TypedValue.COMPLEX_UNIT_PX, artistText.getTextSize() * k);
+            float shrink = Math.max(0.5f, h / rows);
+            trackText.setTextSize(TypedValue.COMPLEX_UNIT_PX, trackText.getTextSize() * shrink);
+            artistText.setTextSize(TypedValue.COMPLEX_UNIT_PX, artistText.getTextSize() * shrink);
         }
+    }
+
+    /** Applies Fonts.scale to every text and button now (pinch, settings, reset). */
+    void applyTextScale() {
+        for (int i = 0; i < scaledTexts.size(); i++) {
+            TextView t = scaledTexts.get(i);
+            if (t == trackText || t == artistText || t == clockText || t == dateText) continue; // fitTexts() sizes these
+            t.setTextSize(TypedValue.COMPLEX_UNIT_SP, baseSizes.get(i) * Fonts.scale);
+        }
+        fitTexts();
+        for (Btn b : actionButtons()) b.invalidate();
+        for (Btn b : srcBtns) b.invalidate();
+        otherTab.invalidate(); offBtn.invalidate(); volDn.invalidate(); volUp.invalidate();
+    }
+
+    void setTextScale(float k, boolean save) {
+        Fonts.scale = Math.max(0.6f, Math.min(1.6f, k));
+        applyTextScale();
+        if (save) prefs.edit().putFloat(PREF_TEXT_SCALE, Fonts.scale).commit();
+    }
+
+    // pinch anywhere: scale all text
+    boolean pinching;
+    android.view.ScaleGestureDetector scaleDetector;
+
+    android.view.ScaleGestureDetector scaleDetector() {
+        if (scaleDetector == null) scaleDetector = new android.view.ScaleGestureDetector(this,
+                new android.view.ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                    @Override public boolean onScale(android.view.ScaleGestureDetector d) {
+                        setTextScale(Fonts.scale * d.getScaleFactor(), false);
+                        flashHint = "(pinching)";
+                        flash("Text size " + Math.round(Fonts.scale * 100) + " %", C_TEXT, 1200);
+                        flashHint = null;
+                        return true;
+                    }
+                    @Override public void onScaleEnd(android.view.ScaleGestureDetector d) {
+                        setTextScale(Fonts.scale, true);
+                    }
+                });
+        return scaleDetector;
+    }
+
+    void resetTextScale() {
+        setTextScale(1f, true);
+        flashHint = "(double tap)";
+        flash("Text size 100 %", C_TEXT, 1200);
+        flashHint = null;
     }
 
     /** Height a single-line TextView needs with its current font and size. */
@@ -1172,6 +1261,7 @@ public class MainActivity extends Activity {
         final CheckBox followCb = new CheckBox(this);
         final CheckBox gestCb = new CheckBox(this);
         final CheckBox hideNavCb = new CheckBox(this);
+        final EditText textScaleEdit = new EditText(this);
         final EditText hideSecsEdit = new EditText(this);
         final CheckBox hideOn = new CheckBox(this);
         final EditText failLimitEdit = new EditText(this);
@@ -1247,6 +1337,23 @@ public class MainActivity extends Activity {
                 hideNavCb.setChecked(prefs.getBoolean(PREF_HIDE_NAV, false));
                 box.addView(hideNavCb);
             }
+            TextView tsl = new TextView(this);
+            tsl.setText("Text size (%) \u2013 also pinch the screen; double-tap the song to reset");
+            tsl.setPadding(0, dp(8), 0, 0);
+            box.addView(tsl);
+            LinearLayout tsRow = new LinearLayout(this);
+            tsRow.setOrientation(LinearLayout.HORIZONTAL);
+            textScaleEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
+            textScaleEdit.setSingleLine(true);
+            textScaleEdit.setText(String.valueOf(Math.round(Fonts.scale * 100)));
+            tsRow.addView(textScaleEdit, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+            android.widget.Button tsReset = new android.widget.Button(this);
+            tsReset.setText("Reset to 100 %");
+            tsReset.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) { textScaleEdit.setText("100"); }
+            });
+            tsRow.addView(tsReset, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            box.addView(tsRow);
             TextView hl = new TextView(this);
             hideOn.setText("Hide playback controls when not touched");
             hideOn.setChecked(prefs.getBoolean(PREF_HIDE_ON, true));
@@ -1288,6 +1395,7 @@ public class MainActivity extends Activity {
                         }
                         boolean ipChanged = !newIp.equals(ip());
                         boolean fontChanged = false;
+                        boolean scaleChanged = false;
                         e.putString(PREF_IP, newIp);
                         if (admin) {
                             e.putBoolean(PREF_SCREEN_ON, screenOn.isChecked());
@@ -1299,6 +1407,12 @@ public class MainActivity extends Activity {
                             e.putBoolean(PREF_FOLLOWER, followCb.isChecked());
                             e.putBoolean(PREF_GESTURES, gestCb.isChecked());
                             if (Build.VERSION.SDK_INT < 19) e.putBoolean(PREF_HIDE_NAV, hideNavCb.isChecked());
+                            try {
+                                int pct = Math.max(60, Math.min(160, Integer.parseInt(textScaleEdit.getText().toString().trim())));
+                                e.putFloat(PREF_TEXT_SCALE, pct / 100f);
+                                Fonts.scale = pct / 100f;
+                                scaleChanged = true;
+                            } catch (NumberFormatException ignored) { }
                             if (fontPick != null) {
                                 String newFont = Fonts.LIST[fontPick[0]][0];
                                 fontChanged = !newFont.equals(prefs.getString(PREF_FONT, "default"));
@@ -1318,6 +1432,7 @@ public class MainActivity extends Activity {
                         if (fontChanged) { recreate(); return; } // rebuild all views in the new font
                         applyScreenOn();
                         applyLayoutPrefs();
+                        if (scaleChanged) applyTextScale();
                         wakeTransport();
                         if (ipChanged) { everPolled = false; connected = false; failStreak = 0; track = ""; artist = ""; input = ""; }
                         render();

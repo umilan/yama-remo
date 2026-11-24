@@ -27,6 +27,8 @@ class Fonts {
             { "sharetech", "Share Tech", "sharetech-regular.ttf", null },
     };
 
+    static float scale = 1f; // text size factor (pinch / settings), 0.6 - 1.6
+
     static Typeface regular = Typeface.DEFAULT;
     static Typeface bold = Typeface.DEFAULT_BOLD;
 
