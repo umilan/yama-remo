@@ -1,5 +1,11 @@
 # Android kiosk app — changelog
 
+## 1.40 (versionCode 49)
+- Swipes work on the whole playing screen, not only the song area: drag up/down = volume, swipe
+  right/left = next/previous. Once a finger has moved ~16 dp the swipe takes over and the button
+  it started on is released without being pressed; plain taps work as before.
+- Exception: dragging on the volume dots still sets the volume directly. No swipes on the clock screen.
+
 ## 1.39 (versionCode 48)
 - Swipe direction swapped: swipe right = next (track or radio station), swipe left = previous.
 

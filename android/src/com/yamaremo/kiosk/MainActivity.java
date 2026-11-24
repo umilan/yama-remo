@@ -259,6 +259,56 @@ public class MainActivity extends Activity {
         }
     }
 
+    // swipes anywhere on the playing screen: drag up/down = volume, swipe right/left = next/previous
+    float gx0, gy0, gStepY;
+    int gMode;          // 0 undecided, 1 volume drag, 2 horizontal swipe, -1 not a swipe (e.g. on the dots)
+
+    /** Returns true while a swipe owns the gesture (the views below got ACTION_CANCEL). */
+    boolean swipeGesture(android.view.MotionEvent e) {
+        int a = e.getActionMasked();
+        if (a == android.view.MotionEvent.ACTION_DOWN) {
+            gx0 = e.getRawX(); gy0 = e.getRawY(); gStepY = gy0;
+            boolean enabled = prefs.getBoolean(PREF_GESTURES, true) && connected && powerOn && !clockShown;
+            // dragging on the volume dots sets the volume directly, so leave that alone
+            gMode = enabled && !(volRow.getVisibility() == View.VISIBLE && inView(volBar, e)) ? 0 : -1;
+            return false;
+        }
+        if (gMode < 0) return false;
+        float dx = e.getRawX() - gx0, dy = e.getRawY() - gy0, slop = dp(16);
+        if (a == android.view.MotionEvent.ACTION_MOVE) {
+            if (gMode == 0) {
+                if (Math.abs(dy) > slop && Math.abs(dy) > Math.abs(dx)) gMode = 1;
+                else if (Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy)) gMode = 2;
+                if (gMode == 0) return false;
+                gStepY = e.getRawY();
+                swallowGesture = false;
+                android.view.MotionEvent c = android.view.MotionEvent.obtain(e);
+                c.setAction(android.view.MotionEvent.ACTION_CANCEL);
+                super.dispatchTouchEvent(c); // buttons under the finger are released, not pressed
+                c.recycle();
+            }
+            if (gMode == 1) {
+                // volume goes down faster than up: finger distance per volume step
+                float stepUp = dp(16), stepDown = dp(5);
+                while (gStepY - e.getRawY() >= stepUp) { flashHint = "(swiping up)"; changeVolume(+1); gStepY -= stepUp; }
+                while (e.getRawY() - gStepY >= stepDown) { flashHint = "(swiping down)"; changeVolume(-1); gStepY += stepDown; }
+                flashHint = null;
+            }
+            return true;
+        }
+        if (a == android.view.MotionEvent.ACTION_UP || a == android.view.MotionEvent.ACTION_CANCEL) {
+            int m = gMode;
+            gMode = -1;
+            if (m == 2 && a == android.view.MotionEvent.ACTION_UP && Math.abs(dx) > dp(60)) {
+                flashHint = dx > 0 ? "(swiping right)" : "(swiping left)";
+                skip(dx > 0 ? +1 : -1); // swipe right = next
+                flashHint = null;
+            }
+            return m > 0;
+        }
+        return gMode > 0;
+    }
+
     static boolean inView(View v, android.view.MotionEvent e) {
         int[] loc = new int[2];
         v.getLocationOnScreen(loc);
@@ -291,6 +341,7 @@ public class MainActivity extends Activity {
             if (a == android.view.MotionEvent.ACTION_UP || a == android.view.MotionEvent.ACTION_CANCEL) pinching = false;
             return true;
         }
+        if (swipeGesture(e)) return true;
         if (a == android.view.MotionEvent.ACTION_DOWN) {
             // a tap where the hidden row is only reveals it, it doesn't press a button
             boolean hiddenHit = transportAllowed && !transportAwake && hitsHiddenRow(e);
@@ -433,45 +484,14 @@ public class MainActivity extends Activity {
                 if (transportAwake) hideTransportNow(); else wakeTransport();
             }
         });
-        // swipe gestures: drag up/down = volume, swipe left/right = next/previous
+        // taps on the song area: single = toggle action row, double = reset text size
+        // (swipes anywhere on the screen are handled in dispatchTouchEvent)
         playBox.setOnTouchListener(new View.OnTouchListener() {
-            float x0, y0, stepY;
-            int mode; // 0 undecided, 1 volume drag, 2 horizontal swipe
             public boolean onTouch(View v, android.view.MotionEvent e) {
-                if (!prefs.getBoolean(PREF_GESTURES, true)) return false;
-                // volume goes down faster than up: finger distance per volume step
-                float slop = dp(16), stepUp = dp(16), stepDown = dp(5);
-                switch (e.getActionMasked()) {
-                case android.view.MotionEvent.ACTION_DOWN:
-                    x0 = e.getX(); y0 = e.getY(); stepY = y0; mode = 0;
-                    return true;
-                case android.view.MotionEvent.ACTION_MOVE: {
-                    float dx = e.getX() - x0, dy = e.getY() - y0;
-                    if (mode == 0) {
-                        if (Math.abs(dy) > slop && Math.abs(dy) > Math.abs(dx)) { mode = 1; stepY = e.getY(); }
-                        else if (Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy)) mode = 2;
-                    }
-                    if (mode == 1) {
-                        while (stepY - e.getY() >= stepUp) { flashHint = "(swiping up)"; changeVolume(+1); stepY -= stepUp; } // finger up
-                        while (e.getY() - stepY >= stepDown) { flashHint = "(swiping down)"; changeVolume(-1); stepY += stepDown; } // finger down
-                        flashHint = null;
-                    }
-                    return true;
-                }
-                case android.view.MotionEvent.ACTION_UP: {
-                    float dx = e.getX() - x0;
-                    if (mode == 0) tapOnNowPlaying(v, e);
-                    else if (mode == 2 && Math.abs(dx) > dp(60)) {                          // swipe right = next
-                        flashHint = dx > 0 ? "(swiping right)" : "(swiping left)";
-                        skip(dx > 0 ? +1 : -1);
-                        flashHint = null;
-                    }
-                    return true;
-                }
-                case android.view.MotionEvent.ACTION_CANCEL:
-                    return true;
-                }
-                return false;
+                int a = e.getActionMasked();
+                if (a == android.view.MotionEvent.ACTION_DOWN) return true;
+                if (a == android.view.MotionEvent.ACTION_UP) { tapOnNowPlaying(v, e); return true; }
+                return a == android.view.MotionEvent.ACTION_CANCEL;
             }
         });
         centre.addView(playBox, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -1328,7 +1348,7 @@ public class MainActivity extends Activity {
                     + "Play and Pause are sent separately");
             followCb.setChecked(follower());
             box.addView(followCb);
-            gestCb.setText("Swipe gestures on the song area: drag up/down = volume, swipe right/left = next/previous");
+            gestCb.setText("Swipe gestures on the whole screen: drag up/down = volume, swipe right/left = next/previous");
             gestCb.setChecked(prefs.getBoolean(PREF_GESTURES, true));
             box.addView(gestCb);
             if (Build.VERSION.SDK_INT < 19) {
