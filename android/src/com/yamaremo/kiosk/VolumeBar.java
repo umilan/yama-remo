@@ -11,6 +11,7 @@ public class VolumeBar extends View {
     interface Listener { void onPick(int fraction1000); }
 
     float fraction;
+    float offsetY;  // draw the dots this far below the vertical centre (touch area unchanged)
     int steps = 100;
     int color = MainActivity.C_TEXT;
     Listener listener;
@@ -35,7 +36,7 @@ public class VolumeBar extends View {
         float d = getResources().getDisplayMetrics().density;
         int n = Math.max(2, Math.min(steps, 120));
         int filled = Math.round(fraction * n);
-        float w = getWidth(), cy = getHeight() / 2f;
+        float w = getWidth(), cy = getHeight() / 2f + offsetY;
         float on = 1.6f * d, off = 1.2f * d, onH = 3f * d;
         for (int i = 0; i < n; i++) {
             float x = on + (w - 2 * on) * i / (n - 1);

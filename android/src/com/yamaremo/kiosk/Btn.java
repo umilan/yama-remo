@@ -26,6 +26,7 @@ public class Btn extends View {
     int fg = MainActivity.C_TEXT;
     float textSize = 20;          // sp
     boolean bold = true;
+    float offsetY;                // draw the label this far below the centre
     Runnable repeat;              // if set: fires on press and repeats while held
 
     private boolean pressed;
@@ -122,7 +123,7 @@ public class Btn extends View {
         float max = w - dp(8);
         while (t.length() > 1 && paint.measureText(t) > max) t = t.substring(0, t.length() - 1);
         Paint.FontMetrics fm = paint.getFontMetrics();
-        c.drawText(t, cx, cy - (fm.ascent + fm.descent) / 2f, paint);
+        c.drawText(t, cx, cy + offsetY - (fm.ascent + fm.descent) / 2f, paint);
     }
 
     private void stroke() {

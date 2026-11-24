@@ -508,6 +508,11 @@ public class MainActivity extends Activity {
         bottom.addView(offRow);
         root.addView(bottom, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, bottomHeight()));
 
+        root.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            public void onLayoutChange(View v, int l, int t, int r, int b, int ol, int ot, int or, int ob) {
+                if (b - t != ob - ot || r - l != or - ol) ui.post(new Runnable() { public void run() { placeVolumeDots(); } });
+            }
+        });
         return root;
     }
 
@@ -520,6 +525,31 @@ public class MainActivity extends Activity {
         ViewGroup.LayoutParams lp = bottom.getLayoutParams();
         lp.height = bottomHeight();
         bottom.setLayoutParams(lp);
+        ui.post(new Runnable() { public void run() { placeVolumeDots(); } });
+    }
+
+    /**
+     * Puts the volume dots so the empty space above them (from the action-row captions) equals
+     * the space below them down to the physical screen edge, including the navigation bar that
+     * Android 4.x can only dim, not hide.
+     */
+    void placeVolumeDots() {
+        View root = (View) bottom.getParent();
+        if (root == null || bottom.getHeight() == 0) return;
+        int[] loc = new int[2];
+        root.getLocationOnScreen(loc);
+        android.util.DisplayMetrics real = new android.util.DisplayMetrics();
+        if (Build.VERSION.SDK_INT >= 17) getWindowManager().getDefaultDisplay().getRealMetrics(real);
+        else getWindowManager().getDefaultDisplay().getMetrics(real);
+        float navBar = Math.max(0, real.heightPixels - (loc[1] + root.getHeight()));
+        float h = bottom.getHeight();
+        float captionGap = dp(23);   // action-row caption baseline to the row's bottom edge
+        float d = (captionGap + h - navBar) / 2f;          // dots' distance from the app's bottom edge
+        d = Math.max(dp(8), Math.min(h - dp(8), d));
+        float shift = h / 2f - d;
+        volBar.offsetY = shift; volBar.invalidate();
+        volDn.offsetY = shift; volDn.invalidate();
+        volUp.offsetY = shift; volUp.invalidate();
     }
 
     Btn[] actionButtons() {

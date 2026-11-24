@@ -1,5 +1,11 @@
 # Android kiosk app — changelog
 
+## 1.21 (versionCode 26)
+- Volume row placed so the space above it (below the action-row captions) equals the space below it
+  down to the physical screen edge, counting the navigation bar Android 4.x can only dim. On the
+  A3000 the dots sit about 12 dp from the bottom of the app area instead of 24 dp. Touch areas are
+  unchanged.
+
 ## 1.20 (versionCode 25)
 - Update check asks every source and takes the highest version, so one stale cache can't hide
   an update. New first source: raw.githack.com (GitHub mirror that caches only minutes).
