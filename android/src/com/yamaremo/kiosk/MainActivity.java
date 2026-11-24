@@ -311,10 +311,10 @@ public class MainActivity extends Activity {
             gMode = -1;
             if (m == 2) {
                 boolean commit = a == android.view.MotionEvent.ACTION_UP && Math.abs(dx) > dp(60);
-                if (commit && !isLineIn(input)) slideTo(dx > 0 ? +1 : -1); // swipe right = next
+                if (commit && !isLineIn(input)) slideTo(dx > 0 ? +1 : -1); // swipe left = next, right = previous
                 else {
                     playBox.animate().translationX(0).alpha(1f).setDuration(200).setListener(null);
-                    if (commit) { flashHint = dx > 0 ? "(swiping right)" : "(swiping left)"; skip(dx > 0 ? +1 : -1); flashHint = null; }
+                    if (commit) { flashHint = dx > 0 ? "(swiping right)" : "(swiping left)"; skip(dx > 0 ? -1 : +1); flashHint = null; }
                 }
             }
             return m > 0;
@@ -323,19 +323,21 @@ public class MainActivity extends Activity {
     }
 
     /** Slides the current text out in the swipe direction, skips, and slides the new one in. */
-    void slideTo(final int dir) {
+    /** move: +1 = finger went right. Swipe left = next, swipe right = previous. */
+    void slideTo(final int move) {
+        final int dir = -move; // skip direction
         final float w = Math.max(1, playBox.getWidth());
-        playBox.animate().translationX(dir * w).alpha(0f).setDuration(180)
+        playBox.animate().translationX(move * w).alpha(0f).setDuration(180)
                 .setListener(new android.animation.AnimatorListenerAdapter() {
                     boolean cancelled;
                     @Override public void onAnimationCancel(android.animation.Animator an) { cancelled = true; }
                     @Override public void onAnimationEnd(android.animation.Animator an) {
                         if (cancelled) return;
-                        flashHint = dir > 0 ? "(swiping right)" : "(swiping left)";
+                        flashHint = move > 0 ? "(swiping right)" : "(swiping left)";
                         skip(dir);
                         flashHint = null;
                         // the new one comes in from the other side
-                        playBox.setTranslationX(-dir * w);
+                        playBox.setTranslationX(-move * w);
                         playBox.animate().translationX(0).alpha(1f).setDuration(260).setListener(null);
                     }
                 });
@@ -1412,7 +1414,7 @@ public class MainActivity extends Activity {
                     + "Play and Pause are sent separately");
             followCb.setChecked(follower());
             box.addView(followCb);
-            gestCb.setText("Swipe gestures on the whole screen: drag up/down = volume, swipe right/left = next/previous");
+            gestCb.setText("Swipe gestures on the whole screen: drag up/down = volume, swipe left/right = next/previous");
             gestCb.setChecked(prefs.getBoolean(PREF_GESTURES, true));
             box.addView(gestCb);
             if (Build.VERSION.SDK_INT < 19) {

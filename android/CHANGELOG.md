@@ -1,5 +1,9 @@
 # Android kiosk app — changelog
 
+## 1.43 (versionCode 53)
+- Swipe direction back to: swipe left = next, swipe right = previous. The slider still follows the
+  finger (on "next" the old song leaves to the left and the new one comes in from the right).
+
 ## 1.42.1 (versionCode 52)
 - Fix/diagnostics for switching radio stations:
   - Favourites are read fresh from the speaker on every Prev/Next station (were cached 10 min).
