@@ -1,5 +1,17 @@
 # Android kiosk app — changelog
 
+## 1.8 (versionCode 11)
+- Contextual messages instead of "Not playing":
+  - "Turning on…" for up to 8 s after switching the speaker on.
+  - "Switching to Radio…" (etc.) for up to 8 s after picking another source.
+  - Radio: "Tuning in…" with the station while a stream starts; "<station> – Stopped, tap Play to
+    resume"; "Choose a station in the MusicCast app" when no station is known.
+  - AirPlay: "Waiting for AirPlay – choose this speaker on your iPhone, iPad or Mac".
+  - Bluetooth: "Waiting for Bluetooth – connect your phone to the speaker".
+  - "Paused" when paused without song info.
+- After switching on/off or changing source, a status poll that still reports the old state no
+  longer flips the screen back for 8 s.
+
 ## 1.7 (versionCode 10)
 - Action row is now Prev · Shuffle · Settings · Pause · Mute · Repeat · Next.
   Settings opens the settings (PIN if set); Mute toggles mute and turns amber ("Unmute") while muted.

@@ -76,6 +76,10 @@ public class MainActivity extends Activity {
     String repeatMode = "off";
     int volume, maxVolume = 100;
     String input = "", track = "", artist = "", album = "";
+    String playback = "";            // play / pause / stop, from getPlayInfo
+    long powerChangedAt, inputChangedAt;
+    boolean powerTarget;
+    static final long SETTLE_MS = 8000; // how long the speaker gets to apply power/input changes
     long volumeHoldUntil;
 
     // views
@@ -481,6 +485,34 @@ public class MainActivity extends Activity {
         return id;
     }
 
+    final Runnable rerender = new Runnable() { public void run() { render(); } };
+
+    /** {headline, hint} when there is no song to show, based on what the speaker reports. */
+    String[] situation(String station) {
+        long now = System.currentTimeMillis();
+        String src = sourceLabel(input);
+        boolean playingNow = "play".equals(playback);
+        if (now - powerChangedAt < SETTLE_MS && powerTarget)
+            return new String[] { "Turning on\u2026", src };
+        if (now - inputChangedAt < SETTLE_MS)
+            return new String[] { "Switching to " + src + "\u2026", "" };
+        if ("net_radio".equals(input)) {
+            if (playingNow) return new String[] { "Tuning in\u2026", TextUtils.isEmpty(station) ? "Radio" : station };
+            if (!TextUtils.isEmpty(station)) return new String[] { station, "Stopped \u2013 tap Play to resume" };
+            return new String[] { "Radio", "Choose a station in the MusicCast app" };
+        }
+        if ("airplay".equals(input)) {
+            if (playingNow) return new String[] { "AirPlay", "Playing \u2013 no song info" };
+            return new String[] { "Waiting for AirPlay", "Choose this speaker on your iPhone, iPad or Mac" };
+        }
+        if ("bluetooth".equals(input)) {
+            if (playingNow) return new String[] { "Bluetooth", "Playing \u2013 no song info" };
+            return new String[] { "Waiting for Bluetooth", "Connect your phone to the speaker" };
+        }
+        if ("pause".equals(playback)) return new String[] { "Paused", src };
+        return new String[] { "Not playing", src };
+    }
+
     /** Splits radio metadata "Artist - Song" into {artist, song}; no separator → {"", whole text}. */
     static String[] splitArtistSong(String t) {
         if (t == null) return new String[] { "", "" };
@@ -587,10 +619,16 @@ public class MainActivity extends Activity {
                 trackText.setTextColor(C_TEXT);
                 artistText.setText(mute ? "Muted" : "External input");
             } else {
-                trackText.setText(TextUtils.isEmpty(station) ? "Not playing" : station);
-                trackText.setTextColor(TextUtils.isEmpty(station) ? C_GRAY : C_TEXT);
-                artistText.setText(mute ? "Muted" : sourceLabel(input));
-                if (!TextUtils.isEmpty(station)) stationText.setVisibility(View.GONE);
+                // nothing to show yet: say what the speaker is doing
+                String[] st = situation(station);
+                trackText.setText(st[0]);
+                trackText.setTextColor(C_GRAY);
+                artistText.setText(mute ? "Muted" : st[1]);
+                stationText.setVisibility(View.GONE);
+                // a "Turning on" / "Switching" message expires on its own
+                ui.removeCallbacks(rerender);
+                if (System.currentTimeMillis() - Math.max(powerChangedAt, inputChangedAt) < SETTLE_MS)
+                    ui.postDelayed(rerender, 1000);
             }
             artistText.setTextColor(mute ? C_AMBER : C_GRAY);
             fitTexts();
@@ -851,12 +889,19 @@ public class MainActivity extends Activity {
     // ------------------------------------------------------------------
     void togglePower() {
         powerOn = !powerOn;
+        powerTarget = powerOn;
+        powerChangedAt = System.currentTimeMillis();
         render();
         send(powerOn ? "main/setPower?power=on" : "main/setPower?power=standby", true);
     }
 
     void selectInput(int idx) {
-        if (!powerOn) { powerOn = true; send("main/setPower?power=on", false); }
+        long now = System.currentTimeMillis();
+        if (!powerOn) {
+            powerOn = true; powerTarget = true; powerChangedAt = now;
+            send("main/setPower?power=on", false);
+        }
+        if (!SRC_ID[idx].equals(input)) { inputChangedAt = now; track = ""; artist = ""; album = ""; playback = ""; }
         input = SRC_ID[idx];
         render();
         send("main/setInput?input=" + SRC_ID[idx], true);
@@ -924,20 +969,24 @@ public class MainActivity extends Activity {
             try {
                 JSONObject j = new JSONObject(st);
                 if (j.optInt("response_code", 0) == 0) {
-                    powerOn = "on".equals(j.optString("power"));
+                    boolean polledOn = "on".equals(j.optString("power"));
+                    // right after a power change the speaker may still report the old state
+                    if (System.currentTimeMillis() - powerChangedAt > SETTLE_MS || polledOn == powerTarget) powerOn = polledOn;
                     maxVolume = j.optInt("max_volume", maxVolume);
                     if (System.currentTimeMillis() > volumeHoldUntil && pendingVolume.get() < 0)
                         volume = j.optInt("volume", volume);
                     mute = j.optBoolean("mute", mute);
-                    input = j.optString("input", input);
+                    String polledInput = j.optString("input", input);
+                    if (System.currentTimeMillis() - inputChangedAt > SETTLE_MS || polledInput.equals(input)) input = polledInput;
                 }
             } catch (Exception ignored) { }
         }
-        if (!powerOn) { playing = false; track = ""; artist = ""; }
+        if (!powerOn) { playing = false; playback = ""; track = ""; artist = ""; }
         else if (pi != null) {
             try {
                 JSONObject j = new JSONObject(pi);
                 String pb = j.optString("playback");
+                playback = pb;
                 playing = "play".equals(pb);
                 String sh = j.optString("shuffle", "");
                 if (sh.length() > 0) shuffle = !"off".equals(sh);
@@ -947,7 +996,11 @@ public class MainActivity extends Activity {
                     track = j.optString("track", "");
                     artist = j.optString("artist", "");
                     album = j.optString("album", "");
-                } else { track = ""; artist = ""; }
+                } else {
+                    track = "";
+                    // stopped radio: keep the station name for "Stopped" text
+                    if (!"net_radio".equals(input)) { artist = ""; album = ""; }
+                }
             } catch (Exception ignored) { }
         }
         render();
