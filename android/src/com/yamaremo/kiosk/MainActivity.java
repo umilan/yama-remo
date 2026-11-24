@@ -73,13 +73,13 @@ public class MainActivity extends Activity {
     boolean everPolled, connected, powerOn, mute, playing, shuffle;
     String repeatMode = "off";
     int volume, maxVolume = 100;
-    String input = "", track = "", artist = "";
+    String input = "", track = "", artist = "", album = "";
     long volumeHoldUntil;
 
     // views
     Btn offBtn, prevBtn, shuffleBtn, playBtn, repeatBtn, nextBtn, volDn, volUp, updateBtn;
     Btn[] srcBtns = new Btn[SRC_ID.length];
-    TextView trackText, artistText, clockText, dateText, settingsText, ipText;
+    TextView trackText, artistText, stationText, clockText, dateText, settingsText, ipText;
     LinearLayout playBox, clockBox, transportRow, volRow, offRow;
     VolumeBar volBar;
     boolean clockShown = false;  // first render() switches to the right screen
@@ -229,6 +229,12 @@ public class MainActivity extends Activity {
         artistText.setGravity(Gravity.CENTER);
         playBox.addView(trackText, matchWrap());
         playBox.addView(artistText, matchWrap());
+        // radio only: station name, small, under the artist
+        stationText = text("", 20, C_DIM, true);
+        stationText.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams slp = matchWrap();
+        slp.topMargin = dp(10);
+        playBox.addView(stationText, slp);
         playBox.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { poll(); }
         });
@@ -373,6 +379,18 @@ public class MainActivity extends Activity {
         return id;
     }
 
+    /** Splits radio metadata "Artist - Song" into {artist, song}; no separator → {"", whole text}. */
+    static String[] splitArtistSong(String t) {
+        if (t == null) return new String[] { "", "" };
+        t = t.trim();
+        for (String sep : new String[] { " - ", " \u2013 ", " \u2014 ", " ~ ", " | " }) {
+            int i = t.indexOf(sep);
+            if (i > 0 && i + sep.length() < t.length())
+                return new String[] { t.substring(0, i).trim(), t.substring(i + sep.length()).trim() };
+        }
+        return new String[] { "", t };
+    }
+
     /** Inputs with no tracks, so no transport row (same list as the web remote). */
     static boolean isLineIn(String id) {
         return "aux".equals(id) || "optical".equals(id) || "usb".equals(id) || "line_in".equals(id);
@@ -444,18 +462,29 @@ public class MainActivity extends Activity {
         transportRow.setVisibility(on && !isLineIn(input) ? View.VISIBLE : View.GONE);
 
         if (on) {
-            if (!TextUtils.isEmpty(track)) {
-                trackText.setText(track);
+            String song = track, by = artist, station = "";
+            if ("net_radio".equals(input)) {
+                // radio sends one "Artist - Song" text; the artist field holds the station
+                station = !TextUtils.isEmpty(artist) ? artist : album;
+                String[] parts = splitArtistSong(track);
+                by = parts[0];
+                song = parts[1];
+            }
+            stationText.setText(station);
+            stationText.setVisibility(TextUtils.isEmpty(station) ? View.GONE : View.VISIBLE);
+            if (!TextUtils.isEmpty(song)) {
+                trackText.setText(song);
                 trackText.setTextColor(C_TEXT);
-                artistText.setText(mute ? "Muted" : (TextUtils.isEmpty(artist) ? sourceLabel(input) : artist));
+                artistText.setText(mute ? "Muted" : (TextUtils.isEmpty(by) ? sourceLabel(input) : by));
             } else if (isLineIn(input)) {
                 trackText.setText(sourceLabel(input));
                 trackText.setTextColor(C_TEXT);
                 artistText.setText(mute ? "Muted" : "External input");
             } else {
-                trackText.setText("Not playing");
-                trackText.setTextColor(C_GRAY);
+                trackText.setText(TextUtils.isEmpty(station) ? "Not playing" : station);
+                trackText.setTextColor(TextUtils.isEmpty(station) ? C_GRAY : C_TEXT);
                 artistText.setText(mute ? "Muted" : sourceLabel(input));
+                if (!TextUtils.isEmpty(station)) stationText.setVisibility(View.GONE);
             }
             artistText.setTextColor(mute ? C_AMBER : C_GRAY);
             fitTexts();
@@ -782,6 +811,7 @@ public class MainActivity extends Activity {
                 if ("play".equals(pb) || "pause".equals(pb)) {
                     track = j.optString("track", "");
                     artist = j.optString("artist", "");
+                    album = j.optString("album", "");
                 } else { track = ""; artist = ""; }
             } catch (Exception ignored) { }
         }

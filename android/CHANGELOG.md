@@ -1,5 +1,10 @@
 # Android kiosk app — changelog
 
+## 1.4 (versionCode 7)
+- Song and artist always on separate rows. For Radio, the combined "Artist - Song" text from the
+  station is split (separators ` - `, ` – `, ` — `, ` ~ `, ` | `), and the station name is shown
+  small underneath. Without a separator, the whole text is the song.
+
 ## 1.3.2 (versionCode 6)
 - "Net Radio" tab renamed to "Radio".
 
