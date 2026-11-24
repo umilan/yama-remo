@@ -1,5 +1,9 @@
 # Android kiosk app — changelog
 
+## 1.44 (versionCode 54)
+- Text size goes up to 200 % (was 160 %), by pinch or in settings. Song, artist, clock and date
+  still shrink to fit the screen.
+
 ## 1.43 (versionCode 53)
 - Swipe direction back to: swipe left = next, swipe right = previous. The slider still follows the
   finger (on "next" the old song leaves to the left and the new one comes in from the right).

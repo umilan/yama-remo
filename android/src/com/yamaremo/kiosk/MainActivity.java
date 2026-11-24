@@ -1073,7 +1073,7 @@ public class MainActivity extends Activity {
     }
 
     void setTextScale(float k, boolean save) {
-        Fonts.scale = Math.max(0.6f, Math.min(1.6f, k));
+        Fonts.scale = Math.max(0.6f, Math.min(2.0f, k));
         applyTextScale();
         if (save) prefs.edit().putFloat(PREF_TEXT_SCALE, Fonts.scale).commit();
     }
@@ -1494,7 +1494,7 @@ public class MainActivity extends Activity {
                             e.putBoolean(PREF_GESTURES, gestCb.isChecked());
                             if (Build.VERSION.SDK_INT < 19) e.putBoolean(PREF_HIDE_NAV, hideNavCb.isChecked());
                             try {
-                                int pct = Math.max(60, Math.min(160, Integer.parseInt(textScaleEdit.getText().toString().trim())));
+                                int pct = Math.max(60, Math.min(200, Integer.parseInt(textScaleEdit.getText().toString().trim())));
                                 e.putFloat(PREF_TEXT_SCALE, pct / 100f);
                                 Fonts.scale = pct / 100f;
                                 scaleChanged = true;
