@@ -67,6 +67,12 @@ public class MainActivity extends Activity {
     static final String PREF_HIDE_NAV = "hide_nav_buttons";
     static final String PREF_TEXT_SCALE = "text_scale";
     static final String PREF_DEVICE_ID = "device_id";     // speaker identity, to follow it to a new IP
+    static final String PREF_AUTODIM = "autodim";
+    static final String PREF_DIM_CAMERA = "autodim_camera";
+    static final String PREF_NIGHT_LUX = "night_lux";        // light sensor: night below this many lux
+    static final String PREF_NIGHT_CAM = "night_cam";        // camera: night below this frame brightness (0-255)
+    static final String PREF_NIGHT_BRIGHT = "night_brightness"; // screen backlight at night, %
+    static final String PREF_NIGHT_TEXT = "night_text";      // text brightness at night, %
 
     /** Follower mode: the speaker's reported state always wins (other apps control it too). */
     boolean follower() { return prefs.getBoolean(PREF_FOLLOWER, true); }
@@ -155,7 +161,11 @@ public class MainActivity extends Activity {
                 | WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
                 | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
         applyScreenOn();
-        setContentView(buildUi());
+        contentRoot = buildUi();
+        setContentView(contentRoot);
+        autoDim = new AutoDim(this, new AutoDim.Listener() {
+            public void onReading(String source, float value) { onLight(source, value); }
+        });
         render();
         if (TextUtils.isEmpty(ip())) ui.postDelayed(new Runnable() {
             public void run() { showSettings(false); }
@@ -166,6 +176,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         resumed = true;
+        startAutoDim();
         try { if (wifiLock != null) wifiLock.acquire(); } catch (Exception ignored) { }
         hideSystemBars();
         ui.removeCallbacks(pollLoop);
@@ -178,6 +189,7 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         resumed = false;
+        if (autoDim != null) autoDim.stop();
         try { if (wifiLock != null) wifiLock.release(); } catch (Exception ignored) { }
         ui.removeCallbacks(pollLoop);
         ui.removeCallbacks(clockTick);
@@ -1367,6 +1379,12 @@ public class MainActivity extends Activity {
         final CheckBox gestCb = new CheckBox(this);
         final CheckBox hideNavCb = new CheckBox(this);
         final EditText textScaleEdit = new EditText(this);
+        final CheckBox dimCb = new CheckBox(this);
+        final CheckBox camCb = new CheckBox(this);
+        final EditText nightThEdit = new EditText(this);
+        final EditText nightBrEdit = new EditText(this);
+        final EditText nightTxEdit = new EditText(this);
+        final boolean[] nightSensorSrc = { false };
         final EditText hideSecsEdit = new EditText(this);
         final CheckBox hideOn = new CheckBox(this);
         final EditText failLimitEdit = new EditText(this);
@@ -1442,6 +1460,43 @@ public class MainActivity extends Activity {
                 hideNavCb.setChecked(prefs.getBoolean(PREF_HIDE_NAV, false));
                 box.addView(hideNavCb);
             }
+            TextView roomHdr = new TextView(this);
+            roomHdr.setText("ROOM LIGHT");
+            roomHdr.setTextColor(0xFF33B5E5);
+            roomHdr.setTypeface(Typeface.DEFAULT_BOLD);
+            roomHdr.setPadding(0, dp(18), 0, dp(4));
+            box.addView(roomHdr);
+            dimCb.setText("Dim the screen when the room is dark");
+            dimCb.setChecked(prefs.getBoolean(PREF_AUTODIM, true));
+            box.addView(dimCb);
+            camCb.setText("Use the front camera to measure room light if there is no light sensor "
+                    + "(one tiny frame per minute, analysed and discarded, never stored)");
+            camCb.setChecked(prefs.getBoolean(PREF_DIM_CAMERA, true));
+            box.addView(camCb);
+            final TextView lightNow = new TextView(this);
+            lightNow.setText(lightText());
+            box.addView(lightNow);
+            final boolean sensorSrc = AutoDim.SENSOR.equals(autoDim.source(prefs.getBoolean(PREF_DIM_CAMERA, true)));
+            TextView thl = new TextView(this);
+            thl.setText(sensorSrc ? "Night mode below (lux)" : "Night mode below (camera brightness, compare with \"now\" above)");
+            box.addView(thl);
+            nightThEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
+            nightThEdit.setText(String.valueOf(sensorSrc ? prefs.getInt(PREF_NIGHT_LUX, 5) : prefs.getInt(PREF_NIGHT_CAM, 40)));
+            box.addView(sliderRow(nightThEdit, 0, sensorSrc ? 100 : 255));
+            TextView nbl = new TextView(this);
+            nbl.setText("Screen brightness at night (%)");
+            box.addView(nbl);
+            nightBrEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
+            nightBrEdit.setText(String.valueOf(prefs.getInt(PREF_NIGHT_BRIGHT, 5)));
+            box.addView(sliderRow(nightBrEdit, 1, 100));
+            TextView ntl = new TextView(this);
+            ntl.setText("Text brightness at night (%)");
+            box.addView(ntl);
+            nightTxEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
+            nightTxEdit.setText(String.valueOf(prefs.getInt(PREF_NIGHT_TEXT, 50)));
+            box.addView(sliderRow(nightTxEdit, 10, 100));
+            nightSensorSrc[0] = sensorSrc;
+
             TextView tsl = new TextView(this);
             tsl.setText("Text size (%) \u2013 also pinch the screen; double-tap the song to reset");
             tsl.setPadding(0, dp(8), 0, 0);
@@ -1502,6 +1557,7 @@ public class MainActivity extends Activity {
                         boolean ipChanged = !newIp.equals(ip());
                         boolean fontChanged = false;
                         boolean scaleChanged = false;
+                        boolean dimChanged = false;
                         e.putString(PREF_IP, newIp);
                         if (admin) {
                             e.putBoolean(PREF_SCREEN_ON, screenOn.isChecked());
@@ -1513,6 +1569,13 @@ public class MainActivity extends Activity {
                             e.putBoolean(PREF_FOLLOWER, followCb.isChecked());
                             e.putBoolean(PREF_GESTURES, gestCb.isChecked());
                             if (Build.VERSION.SDK_INT < 19) e.putBoolean(PREF_HIDE_NAV, hideNavCb.isChecked());
+                            e.putBoolean(PREF_AUTODIM, dimCb.isChecked());
+                            e.putBoolean(PREF_DIM_CAMERA, camCb.isChecked());
+                            e.putInt(nightSensorSrc[0] ? PREF_NIGHT_LUX : PREF_NIGHT_CAM, intOf(nightThEdit, 0, nightSensorSrc[0] ? 1000 : 255,
+                                    nightSensorSrc[0] ? prefs.getInt(PREF_NIGHT_LUX, 5) : prefs.getInt(PREF_NIGHT_CAM, 40)));
+                            e.putInt(PREF_NIGHT_BRIGHT, intOf(nightBrEdit, 1, 100, prefs.getInt(PREF_NIGHT_BRIGHT, 5)));
+                            e.putInt(PREF_NIGHT_TEXT, intOf(nightTxEdit, 10, 100, prefs.getInt(PREF_NIGHT_TEXT, 50)));
+                            dimChanged = true;
                             try {
                                 int pct = Math.max(60, Math.min(200, Integer.parseInt(textScaleEdit.getText().toString().trim())));
                                 e.putFloat(PREF_TEXT_SCALE, pct / 100f);
@@ -1539,6 +1602,7 @@ public class MainActivity extends Activity {
                         applyScreenOn();
                         applyLayoutPrefs();
                         if (scaleChanged) applyTextScale();
+                        if (dimChanged) { startAutoDim(); if (night) applyNight(true); }
                         wakeTransport();
                         if (ipChanged) { everPolled = false; connected = false; failStreak = 0; speakerChecked = false; track = ""; artist = ""; input = ""; }
                         render();
@@ -1662,6 +1726,11 @@ public class MainActivity extends Activity {
         row.addView(slider(field, min, max), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         row.addView(field, new LinearLayout.LayoutParams(dp(80), ViewGroup.LayoutParams.WRAP_CONTENT));
         return row;
+    }
+
+    static int intOf(EditText f, int min, int max, int def) {
+        try { return Math.max(min, Math.min(max, Integer.parseInt(f.getText().toString().trim()))); }
+        catch (NumberFormatException e) { return def; }
     }
 
     void info(String title, String msg) {
@@ -1956,6 +2025,54 @@ public class MainActivity extends Activity {
                         .show();
             } });
         } }).start();
+    }
+
+    // ------------------------------------------------------------------
+    // Auto-dim from room light
+    // ------------------------------------------------------------------
+    View contentRoot;
+    AutoDim autoDim;
+    String lightSource;
+    float lightValue = -1;
+    boolean night;
+
+    void startAutoDim() {
+        if (autoDim == null) return;
+        autoDim.stop();
+        if (prefs.getBoolean(PREF_AUTODIM, true)) autoDim.start(prefs.getBoolean(PREF_DIM_CAMERA, true));
+        else applyNight(false);
+    }
+
+    float nightThreshold(String source) {
+        return AutoDim.SENSOR.equals(source) ? prefs.getInt(PREF_NIGHT_LUX, 5) : prefs.getInt(PREF_NIGHT_CAM, 40);
+    }
+
+    void onLight(String source, float value) {
+        lightSource = source;
+        lightValue = value;
+        if (!prefs.getBoolean(PREF_AUTODIM, true)) return;
+        float th = nightThreshold(source);
+        // hysteresis, so it doesn't flicker around the threshold
+        if (!night && value < th) applyNight(true);
+        else if (night && value > th * 1.3f + 3) applyNight(false);
+    }
+
+    void applyNight(boolean on) {
+        night = on;
+        WindowManager.LayoutParams lp = getWindow().getAttributes();
+        lp.screenBrightness = on ? Math.max(0.01f, prefs.getInt(PREF_NIGHT_BRIGHT, 5) / 100f)
+                : WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE;
+        getWindow().setAttributes(lp);
+        if (contentRoot != null)
+            contentRoot.animate().alpha(on ? Math.max(0.1f, prefs.getInt(PREF_NIGHT_TEXT, 50) / 100f) : 1f).setDuration(1500);
+    }
+
+    String lightText() {
+        String src = autoDim == null ? null : autoDim.source(prefs.getBoolean(PREF_DIM_CAMERA, true));
+        if (src == null) return "Room light: no light sensor" + (prefs.getBoolean(PREF_DIM_CAMERA, true) ? " and no usable camera" : " (camera not allowed)");
+        String unit = AutoDim.SENSOR.equals(src) ? " lux" : " (camera brightness 0\u2013255)";
+        return "Room light from the " + src + ": now " + (lightValue < 0 || !src.equals(lightSource) ? "\u2013" : String.valueOf(Math.round(lightValue)))
+                + unit + (night ? " \u2013 night mode on" : "");
     }
 
     int failLimit() { return Math.max(1, prefs.getInt(PREF_FAIL_LIMIT, 3)); }

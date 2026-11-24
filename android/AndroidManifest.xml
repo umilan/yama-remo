@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.yamaremo.kiosk"
-    android:versionCode="58"
-    android:versionName="1.47">
+    android:versionCode="59"
+    android:versionName="1.48">
 
     <uses-sdk android:minSdkVersion="15" android:targetSdkVersion="23" />
 
@@ -13,6 +13,10 @@
     <!-- speaker discovery (SSDP multicast, own subnet) -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!-- auto-dim: room light from the front camera when there is no light sensor -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
     <!-- self-update: the APK is saved to shared storage so the installer can read it -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="18" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />

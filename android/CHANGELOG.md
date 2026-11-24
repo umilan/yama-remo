@@ -1,5 +1,13 @@
 # Android kiosk app — changelog
 
+## 1.48 (versionCode 59)
+- Auto-dim from room light (ADVANCED → ROOM LIGHT, on by default): night mode lowers the screen
+  backlight (default 5 %) and the text brightness (default 50 %) when the room is dark, with a 1.5 s
+  fade; it switches back with a margin so it doesn't flicker.
+- Light comes from the light sensor if the tablet has one; otherwise from the front camera: one tiny
+  frame per minute, averaged in memory and discarded (can be turned off). Settings show the current
+  reading so the "night below" threshold can be set by comparing.
+
 ## 1.47 (versionCode 58)
 - Speaker discovery: "Find speaker on this Wi-Fi" in settings lists the MusicCast speakers found by
   SSDP (UPnP), or by a quick scan of the local network if nothing answers, with name and IP.
