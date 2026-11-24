@@ -1,5 +1,14 @@
 # Android kiosk app — changelog
 
+## 1.47 (versionCode 58)
+- Speaker discovery: "Find speaker on this Wi-Fi" in settings lists the MusicCast speakers found by
+  SSDP (UPnP), or by a quick scan of the local network if nothing answers, with name and IP.
+- Follows the speaker: the app remembers the speaker's device id; when it can't be reached, it
+  searches the network (at most once a minute) and switches to the speaker's new IP by itself.
+- Push updates: requests subscribe to the speaker's event notifications (UDP port 41100), so changes
+  made elsewhere (phone, buttons) show up immediately. While events arrive, the regular status check
+  slows down from every 3 s to every 10 s.
+
 ## 1.46 (versionCode 57)
 - Clock screen: hiding the tabs and footer (tap on the clock) now releases their space, so the clock
   and date can grow into it (about 50 % more height for the clock at large text sizes). The clock

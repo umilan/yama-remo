@@ -66,6 +66,7 @@ public class MainActivity extends Activity {
     static final String PREF_FONT = "font";
     static final String PREF_HIDE_NAV = "hide_nav_buttons";
     static final String PREF_TEXT_SCALE = "text_scale";
+    static final String PREF_DEVICE_ID = "device_id";     // speaker identity, to follow it to a new IP
 
     /** Follower mode: the speaker's reported state always wins (other apps control it too). */
     boolean follower() { return prefs.getBoolean(PREF_FOLLOWER, true); }
@@ -135,6 +136,13 @@ public class MainActivity extends Activity {
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         Fonts.apply(this, prefs.getString(PREF_FONT, "default"));
         Fonts.scale = prefs.getFloat(PREF_TEXT_SCALE, 1f);
+        events = new Events(new Events.Listener() {
+            public void onEvent(String json) {
+                lastEventAt = System.currentTimeMillis();
+                ui.post(new Runnable() { public void run() { poll(); } }); // poll() ignores overlapping calls
+            }
+        });
+        events.start();
         new Thread(new Runnable() { public void run() { Updater.init(getApplicationContext()); } }).start();
         // Android 4.x reuses dead pooled HTTP connections, which makes random requests fail
         System.setProperty("http.keepAlive", "false");
@@ -179,6 +187,7 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         super.onDestroy();
         net.shutdownNow();
+        if (events != null) events.shutdown();
     }
 
     @Override
@@ -408,7 +417,9 @@ public class MainActivity extends Activity {
             poll();
             // the kiosk app stays in front for days, so the update check runs from here too
             if (System.currentTimeMillis() - lastUpdateCheck > UPDATE_EVERY_MS) checkForUpdates(false);
-            if (resumed) ui.postDelayed(this, POLL_MS);
+            // with push events working, a slow poll is enough (it also keeps the events subscription alive)
+            boolean pushing = System.currentTimeMillis() - lastEventAt < 5 * 60 * 1000;
+            if (resumed) ui.postDelayed(this, pushing ? 10000 : POLL_MS);
         }
     };
 
@@ -1339,6 +1350,12 @@ public class MainActivity extends Activity {
         ipEdit.setText(TextUtils.isEmpty(ip()) ? DEFAULT_IP : ip());
         ipEdit.setHint(DEFAULT_IP);
         box.addView(ipEdit);
+        final android.widget.Button findBtn = new android.widget.Button(this);
+        findBtn.setText("Find speaker on this Wi-Fi");
+        findBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) { findSpeakers(findBtn, ipEdit); }
+        });
+        box.addView(findBtn);
 
         final CheckBox screenOn = new CheckBox(this);
         final CheckBox boot = new CheckBox(this);
@@ -1523,7 +1540,7 @@ public class MainActivity extends Activity {
                         applyLayoutPrefs();
                         if (scaleChanged) applyTextScale();
                         wakeTransport();
-                        if (ipChanged) { everPolled = false; connected = false; failStreak = 0; track = ""; artist = ""; input = ""; }
+                        if (ipChanged) { everPolled = false; connected = false; failStreak = 0; speakerChecked = false; track = ""; artist = ""; input = ""; }
                         render();
                         poll();
                         hideSystemBars();
@@ -1824,6 +1841,7 @@ public class MainActivity extends Activity {
         }
         connected = true;
         failStreak = 0;
+        rememberSpeaker();
         if (st != null) {
             try {
                 JSONObject j = new JSONObject(st);
@@ -1868,13 +1886,85 @@ public class MainActivity extends Activity {
     /** Blocking GET on the worker thread. Returns the body, or null on failure. */
     volatile String lastNetError = "";
 
+    // ------------------------------------------------------------------
+    // Speaker discovery and push events
+    // ------------------------------------------------------------------
+    Events events;
+    volatile long lastEventAt;
+    boolean speakerChecked;
+    long lastFollowAt;
+
+    /** Once per IP: store the speaker's device id, so it can be found again if its IP changes. */
+    void rememberSpeaker() {
+        if (speakerChecked) return;
+        speakerChecked = true;
+        final String ipNow = ip();
+        new Thread(new Runnable() { public void run() {
+            Discovery.Speaker sp = Discovery.info(ipNow);
+            if (sp != null && sp.deviceId.length() > 0) prefs.edit().putString(PREF_DEVICE_ID, sp.deviceId).commit();
+        } }).start();
+    }
+
+    /** Speaker unreachable: look for the same device id on the network and switch to its new IP. */
+    void followSpeaker() {
+        final String id = prefs.getString(PREF_DEVICE_ID, "");
+        if (id.length() == 0 || System.currentTimeMillis() - lastFollowAt < 60000) return;
+        lastFollowAt = System.currentTimeMillis();
+        new Thread(new Runnable() { public void run() {
+            for (final Discovery.Speaker sp : Discovery.search(MainActivity.this)) {
+                if (id.equals(sp.deviceId) && !sp.ip.equals(ip())) {
+                    ui.post(new Runnable() { public void run() {
+                        prefs.edit().putString(PREF_IP, sp.ip).commit();
+                        everPolled = false; failStreak = 0; speakerChecked = true;
+                        toast("Speaker found at its new address " + sp.ip);
+                        render();
+                        poll();
+                    } });
+                    return;
+                }
+            }
+        } }).start();
+    }
+
+    /** Settings button: search the Wi-Fi and let the user pick a speaker. */
+    void findSpeakers(final android.widget.Button btn, final EditText ipEdit) {
+        final CharSequence label = btn.getText();
+        btn.setText("Searching\u2026 (up to 10 s)");
+        btn.setEnabled(false);
+        new Thread(new Runnable() { public void run() {
+            final java.util.List<Discovery.Speaker> list = Discovery.search(MainActivity.this);
+            ui.post(new Runnable() { public void run() {
+                btn.setText(label);
+                btn.setEnabled(true);
+                if (list.isEmpty()) {
+                    info("No speaker found", "No MusicCast speaker answered on this Wi-Fi. Check that the speaker is on "
+                            + "and on the same network as the tablet, or type its IP address.");
+                    return;
+                }
+                final String[] items = new String[list.size()];
+                for (int i = 0; i < items.length; i++) items[i] = list.get(i).toString();
+                new AlertDialog.Builder(MainActivity.this)
+                        .setTitle("Speakers on this Wi-Fi")
+                        .setItems(items, new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface d, int which) {
+                                ipEdit.setText(list.get(which).ip);
+                                if (list.get(which).deviceId.length() > 0)
+                                    prefs.edit().putString(PREF_DEVICE_ID, list.get(which).deviceId).commit();
+                            }
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            } });
+        } }).start();
+    }
+
     int failLimit() { return Math.max(1, prefs.getInt(PREF_FAIL_LIMIT, 3)); }
 
     void noteFailure() {
         failStreak++;
         worstStreak = Math.max(worstStreak, failStreak);
         lastFailAt = System.currentTimeMillis();
-        if (failStreak >= failLimit()) connected = false;
+        if (failStreak >= failLimit()) { connected = false; followSpeaker(); }
     }
 
     String healthText() {
@@ -1917,6 +2007,9 @@ public class MainActivity extends Activity {
             c.setReadTimeout(6000);
             c.setUseCaches(false);
             c.setRequestProperty("Connection", "close");
+            // subscribe to push events: the speaker then sends changes to Events.PORT
+            c.setRequestProperty("X-AppName", "MusicCast/1.0(yamaremo)");
+            c.setRequestProperty("X-AppPort", String.valueOf(Events.PORT));
             int code = c.getResponseCode();
             if (code != 200) { lastNetError = "HTTP " + code + " from the speaker"; return null; }
             InputStream in = c.getInputStream();
