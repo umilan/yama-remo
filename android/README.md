@@ -10,7 +10,7 @@ and `proxy.py` isn't needed.
 ## Features
 
 - Black, minimal screen. Sources are text tabs along the top (AirPlay, AUX, Optical, Bluetooth,
-  Net Radio), with **OFF** at the end to put the speaker in standby.
+  Radio), with **OFF** at the end to put the speaker in standby.
 - Playing: big track title with the artist below it, then Prev / Shuffle / Play-Pause / Repeat / Next
   as outline icons with labels. Shuffle and Repeat are dimmed when off; tapping Repeat cycles
   off → all → one.

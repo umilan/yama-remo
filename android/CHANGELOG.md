@@ -1,5 +1,8 @@
 # Android kiosk app — changelog
 
+## 1.3.2 (versionCode 6)
+- "Net Radio" tab renamed to "Radio".
+
 ## 1.3.1 (versionCode 5)
 - Fix: update check failed on Android 4.2 with "SSL handshake aborted … unsupported protocol".
   The app now opens HTTPS connections itself with TLS 1.2/1.1/1.0 and SNI, and doesn't fall

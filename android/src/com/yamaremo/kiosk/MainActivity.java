@@ -65,7 +65,7 @@ public class MainActivity extends Activity {
     static final int C_AMBER = 0xFFE0A030;
 
     static final String[] SRC_ID = { "airplay", "aux", "optical", "bluetooth", "net_radio" };
-    static final String[] SRC_LABEL = { "AirPlay", "AUX", "Optical", "Bluetooth", "Net Radio" };
+    static final String[] SRC_LABEL = { "AirPlay", "AUX", "Optical", "Bluetooth", "Radio" };
 
     static final int POLL_MS = 3000;
 
