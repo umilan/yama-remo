@@ -14,11 +14,11 @@ Every feature or fix to the Android app ships as a new version:
 
 ## Reporting
 
-End every finished reply with one last line holding the app version and `DONE` together, with the
-direct download link right above it:
+End every finished reply with one last line: `DONE`, then the app version as a markdown link whose
+target is the direct download of that version's APK. No separate download line.
 
-    Download: https://github.com/umilan/yama-remo/raw/<branch>/android/releases/yamaremo-kiosk-1.4.apk
-    Android app v1.4 · DONE
+    DONE · [Android app v1.4](https://github.com/umilan/yama-remo/raw/<branch>/android/releases/yamaremo-kiosk-1.4.apk)
 
-Use the branch the commit was pushed to (`main` once merged). Name the WinCE app version too when it
-changed (`wince/`, version in `APP_VERSION` in `yamaremo.c`), e.g. `Android app v1.4 · WinCE app v1.1 · DONE`.
+Use the branch the commit was pushed to (`main` once merged). When the WinCE app (`wince/`, version in
+`APP_VERSION` in `yamaremo.c`) changed too, add it the same way:
+`DONE · [Android app v1.4](…apk) · [WinCE app v1.1](…exe)`.
