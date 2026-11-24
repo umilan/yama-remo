@@ -1432,7 +1432,8 @@ public class MainActivity extends Activity {
             textScaleEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
             textScaleEdit.setSingleLine(true);
             textScaleEdit.setText(String.valueOf(Math.round(Fonts.scale * 100)));
-            tsRow.addView(textScaleEdit, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+            tsRow.addView(slider(textScaleEdit, 60, 200), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+            tsRow.addView(textScaleEdit, new LinearLayout.LayoutParams(dp(80), ViewGroup.LayoutParams.WRAP_CONTENT));
             android.widget.Button tsReset = new android.widget.Button(this);
             tsReset.setText("Reset to 100 %");
             tsReset.setOnClickListener(new View.OnClickListener() {
@@ -1453,14 +1454,14 @@ public class MainActivity extends Activity {
             hideSecsEdit.setSingleLine(true);
             hideSecsEdit.setText(String.valueOf(prefs.getInt(PREF_HIDE_SECS, 10)));
             hideSecsEdit.setEnabled(hideOn.isChecked());
-            box.addView(hideSecsEdit);
+            box.addView(sliderRow(hideSecsEdit, 1, 120));
             TextView fl = new TextView(this);
             fl.setText("Show \"not connected\" after this many failed checks in a row (one check every 3 s)");
             box.addView(fl);
             failLimitEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
             failLimitEdit.setSingleLine(true);
             failLimitEdit.setText(String.valueOf(failLimit()));
-            box.addView(failLimitEdit);
+            box.addView(sliderRow(failLimitEdit, 1, 20));
             TextView health = new TextView(this);
             health.setText(healthText());
             health.setPadding(0, dp(8), 0, dp(8));
@@ -1599,6 +1600,49 @@ public class MainActivity extends Activity {
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    /** A SeekBar kept in sync with a number field, both ways. Typed values outside min..max are allowed. */
+    android.widget.SeekBar slider(final EditText field, final int min, final int max) {
+        final android.widget.SeekBar sb = new android.widget.SeekBar(this);
+        sb.setMax(max - min);
+        final boolean[] syncing = { false };
+        Runnable fromField = new Runnable() { public void run() {
+            try {
+                int v = Integer.parseInt(field.getText().toString().trim());
+                syncing[0] = true;
+                sb.setProgress(Math.max(min, Math.min(max, v)) - min);
+                syncing[0] = false;
+            } catch (NumberFormatException ignored) { }
+        } };
+        fromField.run();
+        final Runnable ff = fromField;
+        field.addTextChangedListener(new android.text.TextWatcher() {
+            public void beforeTextChanged(CharSequence c, int a, int b, int d) { }
+            public void onTextChanged(CharSequence c, int a, int b, int d) { }
+            public void afterTextChanged(android.text.Editable e) { if (!syncing[0]) ff.run(); }
+        });
+        sb.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+            public void onProgressChanged(android.widget.SeekBar b, int p, boolean fromUser) {
+                if (!fromUser || syncing[0]) return;
+                syncing[0] = true;
+                field.setText(String.valueOf(min + p));
+                syncing[0] = false;
+            }
+            public void onStartTrackingTouch(android.widget.SeekBar b) { }
+            public void onStopTrackingTouch(android.widget.SeekBar b) { }
+        });
+        return sb;
+    }
+
+    /** Slider + number field side by side. */
+    View sliderRow(EditText field, int min, int max) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.addView(slider(field, min, max), new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        row.addView(field, new LinearLayout.LayoutParams(dp(80), ViewGroup.LayoutParams.WRAP_CONTENT));
+        return row;
     }
 
     void info(String title, String msg) {

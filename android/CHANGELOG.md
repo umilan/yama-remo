@@ -1,5 +1,10 @@
 # Android kiosk app — changelog
 
+## 1.45 (versionCode 55)
+- Settings: sliders next to the number fields, synced both ways: text size (60–200 %), hide playback
+  controls after (1–120 s), "not connected" after (1–20 failed checks). The fields stay; larger
+  values can still be typed.
+
 ## 1.44 (versionCode 54)
 - Text size goes up to 200 % (was 160 %), by pinch or in settings. Song, artist, clock and date
   still shrink to fit the screen.
