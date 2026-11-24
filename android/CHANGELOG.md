@@ -1,5 +1,10 @@
 # Android kiosk app — changelog
 
+## 1.46 (versionCode 57)
+- Clock screen: hiding the tabs and footer (tap on the clock) now releases their space, so the clock
+  and date can grow into it (about 50 % more height for the clock at large text sizes). The clock
+  re-fits when they are shown or hidden.
+
 ## 1.45.1 (versionCode 56)
 - Fix: the clock barely grew when scaling text up, because the date grew too and took its space.
   Above 100 % the date now keeps its size and the clock may use up to 98 % of the width; it is still

@@ -1135,15 +1135,16 @@ public class MainActivity extends Activity {
     /** Clock screen: a tap on the time/date fades the tabs and the footer out or back in. */
     void toggleChrome() {
         chromeHidden = !chromeHidden;
-        for (final View v : new View[] { tabsRow, offRow }) {
+        for (final View v : new View[] { tabsRow, bottom }) {
             v.animate().cancel();
             if (!chromeHidden) {
-                v.setVisibility(View.VISIBLE);
+                if (v.getVisibility() != View.VISIBLE) { v.setAlpha(0f); v.setVisibility(View.VISIBLE); }
                 v.animate().alpha(1f).setDuration(250).setListener(null);
             } else {
                 v.animate().alpha(0f).setDuration(250).setListener(new android.animation.AnimatorListenerAdapter() {
                     @Override public void onAnimationEnd(android.animation.Animator a) {
-                        if (chromeHidden) v.setVisibility(View.INVISIBLE); // keeps the clock in place
+                        // GONE releases their space: the clock grows into it (fitTexts runs on the new size)
+                        if (chromeHidden) v.setVisibility(View.GONE);
                     }
                 });
             }
@@ -1181,7 +1182,7 @@ public class MainActivity extends Activity {
         if (!show && chromeHidden) {
             // speaker on: the tabs are needed again
             chromeHidden = false;
-            for (View v : new View[] { tabsRow, offRow }) { v.animate().cancel(); v.setAlpha(1f); v.setVisibility(View.VISIBLE); }
+            for (View v : new View[] { tabsRow, bottom, offRow }) { v.animate().cancel(); v.setAlpha(1f); v.setVisibility(View.VISIBLE); }
         }
         playBox.setVisibility(show ? View.GONE : View.VISIBLE);
         clockBox.setVisibility(show ? View.VISIBLE : View.GONE);
