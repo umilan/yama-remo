@@ -175,13 +175,25 @@ public class MainActivity extends Activity {
     // ------------------------------------------------------------------
     int hideSecs() { return prefs.getInt(PREF_HIDE_SECS, 10); }
 
+    int transportRowHeight; // remembered while the row is GONE
+
+    /**
+     * Fade the row out while sliding the now-playing text down by half the row's
+     * height, then remove the row (GONE) so the text sits in the new middle.
+     */
     final Runnable hideTransport = new Runnable() {
         public void run() {
             if (!transportAllowed || hideSecs() <= 0) return;
             transportAwake = false;
+            transportRowHeight = transportRow.getHeight();
+            final float shift = transportRowHeight / 2f;
+            playBox.animate().translationY(shift).setDuration(400).setListener(null);
             transportRow.animate().alpha(0f).setDuration(400).setListener(new android.animation.AnimatorListenerAdapter() {
                 @Override public void onAnimationEnd(android.animation.Animator a) {
-                    if (!transportAwake) transportRow.setVisibility(View.INVISIBLE);
+                    if (transportAwake) return;
+                    transportRow.setVisibility(View.GONE);
+                    playBox.animate().cancel();
+                    playBox.setTranslationY(0); // the re-layout now centres it at the same spot
                 }
             });
         }
@@ -193,9 +205,16 @@ public class MainActivity extends Activity {
         if (!transportAwake) {
             transportAwake = true;
             transportRow.animate().cancel();
+            playBox.animate().cancel();
             if (transportAllowed) {
+                boolean wasGone = transportRow.getVisibility() == View.GONE;
                 transportRow.setVisibility(View.VISIBLE);
-                transportRow.animate().alpha(1f).setDuration(200).setListener(null);
+                // the centre shrinks back: start the text where it is now and slide it up
+                if (wasGone) playBox.setTranslationY(transportRowHeight / 2f);
+                playBox.animate().translationY(0).setDuration(250).setListener(null);
+                transportRow.animate().alpha(1f).setDuration(250).setListener(null);
+            } else {
+                playBox.setTranslationY(0);
             }
         }
         if (transportAllowed && hideSecs() > 0) ui.postDelayed(hideTransport, hideSecs() * 1000L);
@@ -205,6 +224,8 @@ public class MainActivity extends Activity {
         if (allowed == transportAllowed) return;
         transportAllowed = allowed;
         transportRow.animate().cancel();
+        playBox.animate().cancel();
+        playBox.setTranslationY(0);
         if (!allowed) {
             ui.removeCallbacks(hideTransport);
             transportRow.setVisibility(View.GONE);
@@ -216,12 +237,21 @@ public class MainActivity extends Activity {
         }
     }
 
+    /** True if the touch lands where the (hidden) action row normally sits: just above the bottom row. */
+    boolean hitsHiddenRow(android.view.MotionEvent e) {
+        int[] loc = new int[2];
+        bottom.getLocationOnScreen(loc);
+        float y = e.getRawY();
+        int h = transportRowHeight > 0 ? transportRowHeight : dp(104);
+        return y >= loc[1] - h && y < loc[1];
+    }
+
     @Override
     public boolean dispatchTouchEvent(android.view.MotionEvent e) {
         int a = e.getActionMasked();
         if (a == android.view.MotionEvent.ACTION_DOWN) {
             // a tap where the hidden row is only reveals it, it doesn't press a button
-            boolean hiddenHit = transportAllowed && !transportAwake && hits(transportRow, e);
+            boolean hiddenHit = transportAllowed && !transportAwake && hitsHiddenRow(e);
             wakeTransport();
             if (hiddenHit) { swallowGesture = true; return true; }
         }
@@ -230,13 +260,6 @@ public class MainActivity extends Activity {
             return true;
         }
         return super.dispatchTouchEvent(e);
-    }
-
-    static boolean hits(View v, android.view.MotionEvent e) {
-        int[] loc = new int[2];
-        v.getLocationOnScreen(loc);
-        float x = e.getRawX(), y = e.getRawY();
-        return x >= loc[0] && x < loc[0] + v.getWidth() && y >= loc[1] && y < loc[1] + v.getHeight();
     }
 
     /** Kiosk: Back does nothing. */

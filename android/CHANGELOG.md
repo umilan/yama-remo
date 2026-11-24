@@ -1,5 +1,9 @@
 # Android kiosk app — changelog
 
+## 1.11 (versionCode 14)
+- When the action row fades out, the now-playing text slides down to the middle of the freed space;
+  it slides back up when the row returns.
+
 ## 1.10 (versionCode 13)
 - Radio station names without the trailing location: "Rádio_FM (Bratislava/Slovak)" → "Rádio_FM".
   ADVANCED checkbox "Hide location in radio station names" (on by default).
