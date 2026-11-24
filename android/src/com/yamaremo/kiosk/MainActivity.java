@@ -1164,8 +1164,17 @@ public class MainActivity extends Activity {
                         render();
                         if (!manual) return;
                         if (fe != null) info("Update check failed", fe);
-                        else if (fi != null) info(fi.newer ? "Update available" : "Up to date", (fi.newer ? "Version " + fi.versionName + " is available \u2013 tap Update at the bottom of the clock screen"
-                                : "No newer version") + " (installed " + versionName() + ")\n\nSources:" + fi.report);
+                        else if (fi != null && fi.newer) {
+                            new AlertDialog.Builder(MainActivity.this)
+                                    .setTitle("Update available")
+                                    .setMessage("Version " + fi.versionName + " is available (installed " + versionName() + ").\n\nSources:" + fi.report)
+                                    .setPositiveButton("Update now", new DialogInterface.OnClickListener() {
+                                        public void onClick(DialogInterface d, int w) { downloadAndInstall(fi); }
+                                    })
+                                    .setNegativeButton("Later", null)
+                                    .show();
+                        }
+                        else if (fi != null) info("Up to date", "No newer version (installed " + versionName() + ")\n\nSources:" + fi.report);
                     }
                 });
             }

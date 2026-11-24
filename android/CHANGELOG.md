@@ -1,5 +1,9 @@
 # Android kiosk app — changelog
 
+## 1.24 (versionCode 31)
+- "Check for updates now": when a newer version exists, the dialog has an "Update now" button that
+  downloads it and opens the installer right away ("Later" closes it).
+
 ## 1.23 (versionCode 30)
 - Song title row in full white (was dimmed); the artist stays white.
 
