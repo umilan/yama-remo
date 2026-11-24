@@ -424,7 +424,8 @@ public class MainActivity extends Activity {
             int mode; // 0 undecided, 1 volume drag, 2 horizontal swipe
             public boolean onTouch(View v, android.view.MotionEvent e) {
                 if (!prefs.getBoolean(PREF_GESTURES, true)) return false;
-                float slop = dp(16), step = dp(10);
+                // volume goes down faster than up: finger distance per volume step
+                float slop = dp(16), stepUp = dp(16), stepDown = dp(5);
                 switch (e.getActionMasked()) {
                 case android.view.MotionEvent.ACTION_DOWN:
                     x0 = e.getX(); y0 = e.getY(); stepY = y0; mode = 0;
@@ -436,8 +437,8 @@ public class MainActivity extends Activity {
                         else if (Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy)) mode = 2;
                     }
                     if (mode == 1) {
-                        while (stepY - e.getY() >= step) { flashHint = "(swiping up)"; changeVolume(+1); stepY -= step; } // finger up
-                        while (e.getY() - stepY >= step) { flashHint = "(swiping down)"; changeVolume(-1); stepY += step; } // finger down
+                        while (stepY - e.getY() >= stepUp) { flashHint = "(swiping up)"; changeVolume(+1); stepY -= stepUp; } // finger up
+                        while (e.getY() - stepY >= stepDown) { flashHint = "(swiping down)"; changeVolume(-1); stepY += stepDown; } // finger down
                         flashHint = null;
                     }
                     return true;

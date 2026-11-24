@@ -1,5 +1,9 @@
 # Android kiosk app — changelog
 
+## 1.36 (versionCode 45)
+- Swipe volume is asymmetric: up 1 step per 16 dp of finger movement (slower), down 1 step per 5 dp
+  (over 3× faster), so the volume can be pulled down quickly.
+
 ## 1.35 (versionCode 44)
 - Messages triggered by a swipe explain themselves in the artist row: "Volume 34 / (swiping up)",
   "Next / (swiping left)", "Next station / (swiping left)" on Radio. The artist returns with the song.
