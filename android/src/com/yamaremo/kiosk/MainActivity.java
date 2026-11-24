@@ -461,9 +461,9 @@ public class MainActivity extends Activity {
                 case android.view.MotionEvent.ACTION_UP: {
                     float dx = e.getX() - x0;
                     if (mode == 0) tapOnNowPlaying(v, e);
-                    else if (mode == 2 && Math.abs(dx) > dp(60)) {                          // swipe left = next
-                        flashHint = dx < 0 ? "(swiping left)" : "(swiping right)";
-                        skip(dx < 0 ? +1 : -1);
+                    else if (mode == 2 && Math.abs(dx) > dp(60)) {                          // swipe right = next
+                        flashHint = dx > 0 ? "(swiping right)" : "(swiping left)";
+                        skip(dx > 0 ? +1 : -1);
                         flashHint = null;
                     }
                     return true;
@@ -1328,7 +1328,7 @@ public class MainActivity extends Activity {
                     + "Play and Pause are sent separately");
             followCb.setChecked(follower());
             box.addView(followCb);
-            gestCb.setText("Swipe gestures on the song area: drag up/down = volume, swipe left/right = next/previous");
+            gestCb.setText("Swipe gestures on the song area: drag up/down = volume, swipe right/left = next/previous");
             gestCb.setChecked(prefs.getBoolean(PREF_GESTURES, true));
             box.addView(gestCb);
             if (Build.VERSION.SDK_INT < 19) {

@@ -1,5 +1,8 @@
 # Android kiosk app — changelog
 
+## 1.39 (versionCode 48)
+- Swipe direction swapped: swipe right = next (track or radio station), swipe left = previous.
+
 ## 1.38 (versionCode 47)
 - Pinch out / in anywhere scales all text (60–160 %), live, with "Text size 120 % / (pinching)".
 - Double-tap the song area resets the text size to 100 %. A single tap there still shows/hides the
