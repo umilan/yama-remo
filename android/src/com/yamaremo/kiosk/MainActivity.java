@@ -56,6 +56,7 @@ public class MainActivity extends Activity {
     static final String PREF_PIN = "pin";
     static final String PREF_UPDATE_URL = "update_url";
     static final String PREF_COMPACT_VOLUME = "compact_volume";
+    static final String PREF_HIDE_SECS = "hide_controls_secs";
     static final long UPDATE_EVERY_MS = 6L * 3600 * 1000;
 
     static final int C_BG = 0xFF000000;
@@ -82,6 +83,9 @@ public class MainActivity extends Activity {
     Btn[] srcBtns = new Btn[SRC_ID.length];
     TextView trackText, artistText, stationText, clockText, dateText, settingsText, ipText;
     android.widget.FrameLayout bottom;
+    boolean transportAllowed = true; // speaker on and the input has tracks (first render() corrects it)
+    boolean transportAwake = true; // false while auto-hidden
+    boolean swallowGesture;
     LinearLayout playBox, clockBox, transportRow, volRow, offRow;
     VolumeBar volBar;
     boolean clockShown = false;  // first render() switches to the right screen
@@ -143,6 +147,75 @@ public class MainActivity extends Activity {
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
         if (hasFocus) hideSystemBars();
+    }
+
+    // ------------------------------------------------------------------
+    // Auto-hide of the playback controls row
+    // ------------------------------------------------------------------
+    int hideSecs() { return prefs.getInt(PREF_HIDE_SECS, 10); }
+
+    final Runnable hideTransport = new Runnable() {
+        public void run() {
+            if (!transportAllowed || hideSecs() <= 0) return;
+            transportAwake = false;
+            transportRow.animate().alpha(0f).setDuration(400).setListener(new android.animation.AnimatorListenerAdapter() {
+                @Override public void onAnimationEnd(android.animation.Animator a) {
+                    if (!transportAwake) transportRow.setVisibility(View.INVISIBLE);
+                }
+            });
+        }
+    };
+
+    /** Shows the row (if allowed) and restarts the hide timer. */
+    void wakeTransport() {
+        ui.removeCallbacks(hideTransport);
+        if (!transportAwake) {
+            transportAwake = true;
+            transportRow.animate().cancel();
+            if (transportAllowed) {
+                transportRow.setVisibility(View.VISIBLE);
+                transportRow.animate().alpha(1f).setDuration(200).setListener(null);
+            }
+        }
+        if (transportAllowed && hideSecs() > 0) ui.postDelayed(hideTransport, hideSecs() * 1000L);
+    }
+
+    void setTransportAllowed(boolean allowed) {
+        if (allowed == transportAllowed) return;
+        transportAllowed = allowed;
+        transportRow.animate().cancel();
+        if (!allowed) {
+            ui.removeCallbacks(hideTransport);
+            transportRow.setVisibility(View.GONE);
+        } else {
+            transportAwake = true;
+            transportRow.setAlpha(1f);
+            transportRow.setVisibility(View.VISIBLE);
+            wakeTransport();
+        }
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(android.view.MotionEvent e) {
+        int a = e.getActionMasked();
+        if (a == android.view.MotionEvent.ACTION_DOWN) {
+            // a tap where the hidden row is only reveals it, it doesn't press a button
+            boolean hiddenHit = transportAllowed && !transportAwake && hits(transportRow, e);
+            wakeTransport();
+            if (hiddenHit) { swallowGesture = true; return true; }
+        }
+        if (swallowGesture) {
+            if (a == android.view.MotionEvent.ACTION_UP || a == android.view.MotionEvent.ACTION_CANCEL) swallowGesture = false;
+            return true;
+        }
+        return super.dispatchTouchEvent(e);
+    }
+
+    static boolean hits(View v, android.view.MotionEvent e) {
+        int[] loc = new int[2];
+        v.getLocationOnScreen(loc);
+        float x = e.getRawX(), y = e.getRawY();
+        return x >= loc[0] && x < loc[0] + v.getWidth() && y >= loc[1] && y < loc[1] + v.getHeight();
     }
 
     /** Kiosk: Back does nothing. */
@@ -473,7 +546,7 @@ public class MainActivity extends Activity {
         offBtn.invalidate();
 
         showClock(!on);
-        transportRow.setVisibility(on && !isLineIn(input) ? View.VISIBLE : View.GONE);
+        setTransportAllowed(on && !isLineIn(input));
 
         if (on) {
             String song = track, by = artist, station = "";
@@ -572,6 +645,7 @@ public class MainActivity extends Activity {
         final EditText pinEdit = new EditText(this);
         final EditText updateUrlEdit = new EditText(this);
         final CheckBox compactVol = new CheckBox(this);
+        final EditText hideSecsEdit = new EditText(this);
         if (admin) {
             screenOn.setText("Keep screen on");
             screenOn.setChecked(prefs.getBoolean(PREF_SCREEN_ON, true));
@@ -613,6 +687,13 @@ public class MainActivity extends Activity {
             compactVol.setText("Volume bar without bottom padding");
             compactVol.setChecked(prefs.getBoolean(PREF_COMPACT_VOLUME, true));
             box.addView(compactVol);
+            TextView hl = new TextView(this);
+            hl.setText("Hide playback controls after (seconds, 0 = never)");
+            box.addView(hl);
+            hideSecsEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
+            hideSecsEdit.setSingleLine(true);
+            hideSecsEdit.setText(String.valueOf(hideSecs()));
+            box.addView(hideSecsEdit);
         }
 
         AlertDialog.Builder bld = new AlertDialog.Builder(this)
@@ -630,10 +711,15 @@ public class MainActivity extends Activity {
                             e.putString(PREF_PIN, pinEdit.getText().toString().trim());
                             e.putString(PREF_UPDATE_URL, updateUrlEdit.getText().toString().trim());
                             e.putBoolean(PREF_COMPACT_VOLUME, compactVol.isChecked());
+                            int hs = hideSecs();
+                            try { hs = Math.max(0, Math.min(3600, Integer.parseInt(hideSecsEdit.getText().toString().trim()))); }
+                            catch (NumberFormatException ignored) { }
+                            e.putInt(PREF_HIDE_SECS, hs);
                         }
                         e.commit();
                         applyScreenOn();
                         applyLayoutPrefs();
+                        wakeTransport();
                         if (ipChanged) { everPolled = false; connected = false; track = ""; artist = ""; input = ""; }
                         render();
                         poll();

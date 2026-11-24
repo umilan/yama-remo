@@ -1,5 +1,11 @@
 # Android kiosk app — changelog
 
+## 1.6 (versionCode 9)
+- Playback controls row (Prev / Shuffle / Pause / Repeat / Next) fades out after 10 s without a
+  touch and keeps its space, so nothing jumps. Any touch brings it back; a tap on the hidden row
+  only reveals it and doesn't press a button.
+- ADVANCED setting "Hide playback controls after (seconds, 0 = never)".
+
 ## 1.5 (versionCode 8)
 - Volume bar sits closer to the bottom edge: the bottom row is 48 dp instead of 88 dp.
 - New ADVANCED section in settings with "Volume bar without bottom padding" (on by default);

@@ -17,7 +17,8 @@ and `proxy.py` isn't needed.
   off → all → one.
 - Volume: − and + at the ends of a dotted bar with one dot per volume step. Tap or drag on the dots
   to jump, and hold −/+ to repeat. The tablet's hardware volume keys also control the speaker.
-- Inputs without tracks (AUX, Optical, USB) hide the transport row.
+- Inputs without tracks (AUX, Optical, USB) hide the transport row. Otherwise it fades out after
+  10 s without a touch (configurable) and comes back on any touch.
 - Speaker off or unreachable: a big clock with the date in capitals (`MONDAY, 2026 / 11 / 23`).
   The bottom row shows **Settings** on the left, the speaker IP on the right (red when it can't
   be reached) and **Update x.y** in the middle when a newer version exists.
@@ -31,7 +32,7 @@ and `proxy.py` isn't needed.
 - It also starts after a reboot even if it isn't the Home app; you can turn this off.
 - **Settings:** double-tap the clock, or tap **Settings** under it. There you can set the IP, keep
   the screen on, start after reboot, an optional PIN for this screen, the update URL, the ADVANCED
-  layout options (volume bar without bottom padding), and **Leave kiosk**. Tap the IP under the clock to change only the speaker IP.
+  options (volume bar without bottom padding, hide playback controls after N seconds), and **Leave kiosk**. Tap the IP under the clock to change only the speaker IP.
 - **Leave kiosk** opens the app's system page. Tap **Clear defaults** there and the normal
   launcher is the Home app again.
 - On Android 4.2 the navigation bar can only be dimmed, not hidden; Android 4.4+ hides it fully.
