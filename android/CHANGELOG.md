@@ -1,5 +1,9 @@
 # Android kiosk app — changelog
 
+## 1.26 (versionCode 33)
+- Crossfade when switching between the playing screen and the clock (speaker on/off): the content
+  below the tabs fades out in 0.18 s and the other screen fades in over 0.28 s. The tabs stay put.
+
 ## 1.25 (versionCode 32)
 - Follower mode (ADVANCED, on by default) for when a phone controls the speaker too:
   - The speaker's reported power, source and volume always win; the 8 s grace after power/source

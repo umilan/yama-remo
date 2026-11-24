@@ -825,9 +825,36 @@ public class MainActivity extends Activity {
         }
     };
 
-    void showClock(boolean show) {
+    boolean switching; // crossfade between the playing screen and the clock in progress
+
+    /** Switches between the playing screen and the clock with a short crossfade. */
+    void showClock(final boolean show) {
         if (show == clockShown) return;
         clockShown = show;
+        final View centre = (View) clockBox.getParent();
+        final View[] parts = { centre, bottom, transportRow };
+        if (centre.getWidth() == 0 || !resumed) { applyScreen(show); return; } // first draw: no animation
+        switching = true;
+        for (View v : parts) v.animate().cancel();
+        bottom.animate().alpha(0f).setDuration(180).setListener(null);
+        transportRow.animate().alpha(0f).setDuration(180).setListener(null);
+        centre.animate().alpha(0f).setDuration(180).setListener(new android.animation.AnimatorListenerAdapter() {
+            boolean cancelled;
+            @Override public void onAnimationCancel(android.animation.Animator a) { cancelled = true; }
+            @Override public void onAnimationEnd(android.animation.Animator a) {
+                if (cancelled || clockShown != show) return; // a newer switch took over
+                applyScreen(show);
+                switching = false;
+                render();
+                for (View v : parts) {
+                    v.setAlpha(0f);
+                    v.animate().alpha(1f).setDuration(280).setListener(null);
+                }
+            }
+        });
+    }
+
+    void applyScreen(boolean show) {
         playBox.setVisibility(show ? View.GONE : View.VISIBLE);
         clockBox.setVisibility(show ? View.VISIBLE : View.GONE);
         volRow.setVisibility(show ? View.GONE : View.VISIBLE);
@@ -853,7 +880,7 @@ public class MainActivity extends Activity {
 
         showClock(!on);
         // line-in inputs have no tracks: only Settings and Mute stay in the row
-        setTransportAllowed(on);
+        if (!switching) setTransportAllowed(on); // applied after the crossfade's fade-out
         int trackCtl = isLineIn(input) ? View.INVISIBLE : View.VISIBLE; // keep Settings/Mute in place
         for (Btn b : new Btn[] { prevBtn, shuffleBtn, playBtn, repeatBtn, nextBtn })
             if (b.getVisibility() != trackCtl) b.setVisibility(trackCtl);
