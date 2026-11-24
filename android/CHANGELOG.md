@@ -1,5 +1,8 @@
 # Android kiosk app — changelog
 
+## 1.23 (versionCode 30)
+- Song title row in full white (was dimmed); the artist stays white.
+
 ## 1.22.1 (versionCode 29)
 - Fix: no tab was highlighted when the speaker plays from a source without a tab (Spotify, Server,
   USB, TIDAL…). A white tab with that source's name now appears before OFF while it's active.

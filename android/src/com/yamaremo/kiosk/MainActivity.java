@@ -867,9 +867,9 @@ public class MainActivity extends Activity {
             stationText.setVisibility(TextUtils.isEmpty(station) ? View.GONE : View.VISIBLE);
             int artistColor = C_GRAY;
             if (!TextUtils.isEmpty(song)) {
-                // artist bright, song dimmed
+                // song and artist both full white
                 trackText.setText(song);
-                trackText.setTextColor(C_GRAY);
+                trackText.setTextColor(C_TEXT);
                 artistColor = C_TEXT;
                 artistText.setText(TextUtils.isEmpty(by) ? sourceLabel(input) : by);
             } else if (isLineIn(input)) {
