@@ -1,5 +1,11 @@
 # Android kiosk app — changelog
 
+## 1.16 (versionCode 20)
+- Radio: Prev/Next ("Prev station" / "Next station") step through the radio stations saved as
+  favourites (presets) in the MusicCast app, wrapping around at the ends. Stepping starts from the
+  station that is playing when it's one of the presets.
+- "Tuning in… <station>" while the new station starts, instead of the previous station's song.
+
 ## 1.15 (versionCode 19)
 - Faster updates:
   - Before every check the app asks jsDelivr to drop its cached `version.json` (purge), so a new

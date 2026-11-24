@@ -395,11 +395,23 @@ public class MainActivity extends Activity {
 
         // --- transport: icon + caption
         transportRow = row();
-        prevBtn = iconBtn(Btn.ICON_PREV, "Prev", "netusb/setPlayback?playback=previous");
+        prevBtn = iconBtn(Btn.ICON_PREV, "Prev", null);
+        prevBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if ("net_radio".equals(input)) stepStation(-1);
+                else send("netusb/setPlayback?playback=previous", true);
+            }
+        });
         shuffleBtn = iconBtn(Btn.ICON_SHUFFLE, "Shuffle", null);
         playBtn = iconBtn(Btn.ICON_PAUSE, "Pause", null);
         repeatBtn = iconBtn(Btn.ICON_REPEAT, "Repeat", null);
-        nextBtn = iconBtn(Btn.ICON_NEXT, "Next", "netusb/setPlayback?playback=next");
+        nextBtn = iconBtn(Btn.ICON_NEXT, "Next", null);
+        nextBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if ("net_radio".equals(input)) stepStation(+1);
+                else send("netusb/setPlayback?playback=next", true);
+            }
+        });
         shuffleBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { shuffle = !shuffle; render(); send("netusb/toggleShuffle", true); }
         });
@@ -531,6 +543,80 @@ public class MainActivity extends Activity {
 
     final Runnable rerender = new Runnable() { public void run() { render(); } };
 
+    // ------------------------------------------------------------------
+    // Radio: Prev/Next step through the speaker's saved radio presets
+    // ------------------------------------------------------------------
+    java.util.List<String[]> radioPresets;   // {num, name}
+    long presetsLoadedAt, stationChangedAt;
+    String pendingStation = "", trackAtSwitch = "";
+    int presetIndex = -1;
+
+    /** True while a new station is starting and the speaker may still report the old song. */
+    boolean stationChanging() {
+        return System.currentTimeMillis() - stationChangedAt < SETTLE_MS && track.equals(trackAtSwitch);
+    }
+
+    String cleanStation(String st) {
+        return prefs.getBoolean(PREF_HIDE_LOCATION, true) ? stripLocation(st) : st;
+    }
+
+    void stepStation(final int step) {
+        if (TextUtils.isEmpty(ip())) return;
+        final String currentStation = !TextUtils.isEmpty(artist) ? artist : album;
+        net.execute(new Runnable() {
+            public void run() {
+                if (radioPresets == null || System.currentTimeMillis() - presetsLoadedAt > 10 * 60 * 1000) {
+                    java.util.List<String[]> list = new java.util.ArrayList<String[]>();
+                    String r = requestRetry("netusb/getPresetInfo");
+                    try {
+                        org.json.JSONArray arr = new JSONObject(r).getJSONArray("preset_info");
+                        for (int i = 0; i < arr.length(); i++) {
+                            JSONObject p = arr.getJSONObject(i);
+                            String name = p.optString("text", "");
+                            if ("net_radio".equals(p.optString("input")) && name.length() > 0)
+                                list.add(new String[] { String.valueOf(i + 1), name });
+                        }
+                        radioPresets = list;
+                        presetsLoadedAt = System.currentTimeMillis();
+                    } catch (Exception e) {
+                        if (radioPresets == null) radioPresets = list;
+                    }
+                }
+                final java.util.List<String[]> presets = radioPresets;
+                if (presets.isEmpty()) {
+                    ui.post(new Runnable() { public void run() {
+                        toast("No saved radio stations \u2013 add favourites in the MusicCast app first");
+                    } });
+                    return;
+                }
+                // start from the station that's playing now, if it is one of the presets
+                int cur = presetIndex;
+                for (int i = 0; i < presets.size(); i++) {
+                    String a = stripLocation(presets.get(i)[1]).toLowerCase(), b = stripLocation(currentStation).toLowerCase();
+                    if (b.length() > 0 && (a.equals(b) || a.contains(b) || b.contains(a))) { cur = i; break; }
+                }
+                int n = presets.size();
+                int next = cur < 0 ? (step > 0 ? 0 : n - 1) : ((cur + step) % n + n) % n;
+                presetIndex = next;
+                final String[] target = presets.get(next);
+                ui.post(new Runnable() { public void run() {
+                    pendingStation = target[1];
+                    stationChangedAt = System.currentTimeMillis();
+                    trackAtSwitch = track;
+                    render();
+                    ui.removeCallbacks(rerender);
+                    ui.postDelayed(rerender, SETTLE_MS + 100);
+                } });
+                final boolean ok = request("netusb/recallPreset?zone=main&num=" + target[0]) != null;
+                ui.post(new Runnable() { public void run() {
+                    if (!ok) { stationChangedAt = 0; toast("Couldn't switch to " + cleanStation(target[1])); }
+                    render();
+                    ui.postDelayed(new Runnable() { public void run() { poll(); } }, 1200);
+                } });
+            }
+        });
+    }
+
     /** True if the text has at least one letter or digit ("-" or "..." doesn't count). */
     static boolean hasText(String t) {
         if (t == null) return false;
@@ -545,6 +631,8 @@ public class MainActivity extends Activity {
         boolean playingNow = "play".equals(playback);
         if (now - powerChangedAt < SETTLE_MS && powerTarget)
             return new String[] { "Turning on\u2026", src };
+        if ("net_radio".equals(input) && stationChanging())
+            return new String[] { "Tuning in\u2026", cleanStation(pendingStation) };
         if (now - inputChangedAt < SETTLE_MS)
             return new String[] { "Switching to " + src + "\u2026", "" };
         if ("net_radio".equals(input)) {
@@ -672,6 +760,7 @@ public class MainActivity extends Activity {
                 song = parts[1];
                 // song but no artist: the station name takes the artist row
                 if (TextUtils.isEmpty(by) && hasText(song)) { by = station; station = ""; }
+                if (stationChanging()) { song = ""; station = ""; } // old song still reported
             }
             if (!hasText(song)) song = ""; // stations send "-" or similar when they have no info
             stationText.setText(station);
@@ -705,6 +794,9 @@ public class MainActivity extends Activity {
 
         playBtn.icon = playing ? Btn.ICON_PAUSE : Btn.ICON_PLAY;
         playBtn.label = playing ? "Pause" : "Play";
+        boolean radio = "net_radio".equals(input);
+        prevBtn.label = radio ? "Prev station" : "Prev";
+        nextBtn.label = radio ? "Next station" : "Next";
         shuffleBtn.fg = shuffle ? C_TEXT : C_DIM;
         repeatBtn.fg = "off".equals(repeatMode) ? C_DIM : C_TEXT;
         repeatBtn.icon = "one".equals(repeatMode) ? Btn.ICON_REPEAT_ONE : Btn.ICON_REPEAT;
