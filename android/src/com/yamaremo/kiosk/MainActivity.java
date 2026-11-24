@@ -184,8 +184,14 @@ public class MainActivity extends Activity {
      * height, then remove the row (GONE) so the text sits in the new middle.
      */
     final Runnable hideTransport = new Runnable() {
-        public void run() {
-            if (!transportAllowed || hideSecs() <= 0) return;
+        public void run() { if (hideSecs() > 0) hideTransportNow(); }
+    };
+
+    /** Fades the row out now (timer or a tap on the now-playing area). */
+    void hideTransportNow() {
+        if (!transportAllowed || !transportAwake) return;
+        ui.removeCallbacks(hideTransport);
+        {
             transportAwake = false;
             transportRowHeight = transportRow.getHeight();
             final float shift = transportRowHeight / 2f;
@@ -199,7 +205,7 @@ public class MainActivity extends Activity {
                 }
             });
         }
-    };
+    }
 
     /** Shows the row (if allowed) and restarts the hide timer. */
     void wakeTransport() {
@@ -239,6 +245,13 @@ public class MainActivity extends Activity {
         }
     }
 
+    static boolean inView(View v, android.view.MotionEvent e) {
+        int[] loc = new int[2];
+        v.getLocationOnScreen(loc);
+        float x = e.getRawX(), y = e.getRawY();
+        return x >= loc[0] && x < loc[0] + v.getWidth() && y >= loc[1] && y < loc[1] + v.getHeight();
+    }
+
     /** True if the touch lands where the (hidden) action row normally sits: just above the bottom row. */
     boolean hitsHiddenRow(android.view.MotionEvent e) {
         int[] loc = new int[2];
@@ -254,7 +267,9 @@ public class MainActivity extends Activity {
         if (a == android.view.MotionEvent.ACTION_DOWN) {
             // a tap where the hidden row is only reveals it, it doesn't press a button
             boolean hiddenHit = transportAllowed && !transportAwake && hitsHiddenRow(e);
-            wakeTransport();
+            // taps on the now-playing area toggle the row (handled by its click listener)
+            boolean onNowPlaying = transportAllowed && !hiddenHit && inView((View) playBox.getParent(), e);
+            if (!onNowPlaying) wakeTransport();
             if (hiddenHit) { swallowGesture = true; return true; }
         }
         if (swallowGesture) {
@@ -359,7 +374,11 @@ public class MainActivity extends Activity {
         slp.topMargin = dp(10);
         playBox.addView(stationText, slp);
         playBox.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) { poll(); }
+            public void onClick(View v) {
+                poll();
+                // tap toggles the action row
+                if (transportAwake) hideTransportNow(); else wakeTransport();
+            }
         });
         centre.addView(playBox, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 

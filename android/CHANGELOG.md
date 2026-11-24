@@ -1,5 +1,9 @@
 # Android kiosk app — changelog
 
+## 1.17 (versionCode 21)
+- Tapping the now-playing area toggles the action row: hides it right away when visible, shows it
+  when hidden. Works even with auto-hide switched off. Touches elsewhere still only show it.
+
 ## 1.16 (versionCode 20)
 - Radio: Prev/Next ("Prev station" / "Next station") step through the radio stations saved as
   favourites (presets) in the MusicCast app, wrapping around at the ends. Stepping starts from the
