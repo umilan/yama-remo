@@ -122,6 +122,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        new Thread(new Runnable() { public void run() { Updater.init(getApplicationContext()); } }).start();
         // Android 4.x reuses dead pooled HTTP connections, which makes random requests fail
         System.setProperty("http.keepAlive", "false");
         try {
@@ -1031,6 +1032,11 @@ public class MainActivity extends Activity {
                     public void onClick(DialogInterface d, int w) {
                         SharedPreferences.Editor e = prefs.edit();
                         String newIp = ipEdit.getText().toString().trim();
+                        if (!validIp(newIp)) {
+                            info("Speaker IP not saved", "\"" + newIp + "\" isn't a complete address. It needs four numbers "
+                                    + "from 0 to 255 separated by dots, e.g. " + DEFAULT_IP + ".");
+                            return;
+                        }
                         boolean ipChanged = !newIp.equals(ip());
                         e.putString(PREF_IP, newIp);
                         if (admin) {
@@ -1090,6 +1096,18 @@ public class MainActivity extends Activity {
     String versionName() {
         try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionName; }
         catch (Exception e) { return "?"; }
+    }
+
+    /** Four numbers 0-255 separated by dots (a host name with a letter is accepted too). */
+    static boolean validIp(String s) {
+        if (s == null || s.length() == 0) return false;
+        if (s.matches(".*[a-zA-Z].*")) return s.matches("[a-zA-Z0-9.-]+");
+        String[] p = s.split("\\.", -1);
+        if (p.length != 4) return false;
+        for (String x : p) {
+            if (!x.matches("\\d{1,3}") || Integer.parseInt(x) > 255) return false;
+        }
+        return true;
     }
 
     void info(String title, String msg) {
@@ -1297,6 +1315,8 @@ public class MainActivity extends Activity {
     }
 
     /** Blocking GET on the worker thread. Returns the body, or null on failure. */
+    volatile String lastNetError = "";
+
     int failLimit() { return Math.max(1, prefs.getInt(PREF_FAIL_LIMIT, 3)); }
 
     void noteFailure() {
@@ -1313,7 +1333,8 @@ public class MainActivity extends Activity {
                 android.text.format.DateFormat.getTimeFormat(this).format(new Date(lastFailAt));
         return "Connection: " + f + " of " + t + " requests failed in the last " + mins + " min ("
                 + (t > 0 ? Math.round(100f * f / t) : 0) + "%), longest run " + worstStreak
-                + " failed checks in a row, last failure " + last + ".";
+                + " failed checks in a row, last failure " + last + "."
+                + (lastNetError.length() > 0 ? "\nLast error: " + lastNetError : "");
     }
 
     /** Read-only requests are safe to repeat: retry once after a short pause. */
@@ -1344,7 +1365,8 @@ public class MainActivity extends Activity {
             c.setReadTimeout(6000);
             c.setUseCaches(false);
             c.setRequestProperty("Connection", "close");
-            if (c.getResponseCode() != 200) return null;
+            int code = c.getResponseCode();
+            if (code != 200) { lastNetError = "HTTP " + code + " from the speaker"; return null; }
             InputStream in = c.getInputStream();
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             byte[] buf = new byte[4096];
@@ -1353,6 +1375,7 @@ public class MainActivity extends Activity {
             in.close();
             return new String(out.toByteArray(), "UTF-8");
         } catch (Exception e) {
+            lastNetError = e.getClass().getSimpleName() + (e.getMessage() != null ? ": " + e.getMessage() : "");
             return null;
         } finally {
             if (c != null) c.disconnect();

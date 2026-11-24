@@ -139,6 +139,56 @@ class Updater {
      * and never works with modern servers; here TLS 1.2/1.1/1.0 are forced, SNI is set
      * and the hostname is verified.
      */
+    private static javax.net.ssl.SSLSocketFactory trustingFactory;
+
+    /**
+     * Android 4.2 doesn't know many of today's root CAs (Let's Encrypt ISRG, Google GTS, newer
+     * DigiCert/Sectigo...), so update downloads trust the system CAs plus res/raw/extra_roots.pem.
+     */
+    static synchronized void init(Context ctx) {
+        if (trustingFactory != null) return;
+        try {
+            java.security.KeyStore ks = java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType());
+            ks.load(null, null);
+            java.security.cert.CertificateFactory cf = java.security.cert.CertificateFactory.getInstance("X.509");
+            InputStream in = ctx.getResources().openRawResource(R.raw.extra_roots);
+            int n = 0;
+            for (java.security.cert.Certificate c : cf.generateCertificates(in)) ks.setCertificateEntry("extra" + (n++), c);
+            in.close();
+            final javax.net.ssl.X509TrustManager extra = x509(ks);
+            final javax.net.ssl.X509TrustManager system = x509(null);
+            javax.net.ssl.X509TrustManager both = new javax.net.ssl.X509TrustManager() {
+                public void checkClientTrusted(java.security.cert.X509Certificate[] c, String a) throws java.security.cert.CertificateException {
+                    system.checkClientTrusted(c, a);
+                }
+                public void checkServerTrusted(java.security.cert.X509Certificate[] c, String a) throws java.security.cert.CertificateException {
+                    try { system.checkServerTrusted(c, a); }
+                    catch (java.security.cert.CertificateException e) { extra.checkServerTrusted(c, a); }
+                }
+                public java.security.cert.X509Certificate[] getAcceptedIssuers() {
+                    java.security.cert.X509Certificate[] a = system.getAcceptedIssuers(), b = extra.getAcceptedIssuers();
+                    java.security.cert.X509Certificate[] r = new java.security.cert.X509Certificate[a.length + b.length];
+                    System.arraycopy(a, 0, r, 0, a.length);
+                    System.arraycopy(b, 0, r, a.length, b.length);
+                    return r;
+                }
+            };
+            javax.net.ssl.SSLContext sc = javax.net.ssl.SSLContext.getInstance("TLS");
+            sc.init(null, new javax.net.ssl.TrustManager[] { both }, null);
+            trustingFactory = sc.getSocketFactory();
+        } catch (Exception e) {
+            trustingFactory = null; // fall back to the system factory
+        }
+    }
+
+    private static javax.net.ssl.X509TrustManager x509(java.security.KeyStore ks) throws Exception {
+        javax.net.ssl.TrustManagerFactory tmf = javax.net.ssl.TrustManagerFactory.getInstance(javax.net.ssl.TrustManagerFactory.getDefaultAlgorithm());
+        tmf.init(ks);
+        for (javax.net.ssl.TrustManager t : tmf.getTrustManagers())
+            if (t instanceof javax.net.ssl.X509TrustManager) return (javax.net.ssl.X509TrustManager) t;
+        throw new IllegalStateException("no X509TrustManager");
+    }
+
     static byte[] get(String url) throws Exception {
         for (int hop = 0; hop < 5; hop++) {
             URL u = new URL(url);
@@ -150,7 +200,8 @@ class Updater {
             s.setSoTimeout(15000);
             if (https) {
                 SSLCertificateSocketFactory f = (SSLCertificateSocketFactory) SSLCertificateSocketFactory.getDefault(10000, null);
-                SSLSocket ss = (SSLSocket) f.createSocket(s, host, port, true);
+                // our own trust check: the system's CAs plus newer roots bundled with the app
+                SSLSocket ss = (SSLSocket) (trustingFactory != null ? trustingFactory : f).createSocket(s, host, port, true);
                 java.util.List<String> want = new java.util.ArrayList<String>();
                 for (String p : ss.getSupportedProtocols())
                     if (p.equals("TLSv1.2") || p.equals("TLSv1.1") || p.equals("TLSv1")) want.add(p);

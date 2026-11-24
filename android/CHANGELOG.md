@@ -1,5 +1,13 @@
 # Android kiosk app — changelog
 
+## 1.22 (versionCode 28)
+- Updates: the app bundles 23 current root CA certificates (Let's Encrypt ISRG, Google GTS, DigiCert
+  G2/G3, Sectigo/USERTrust, Amazon, GlobalSign…) and trusts them in addition to Android 4.2's own
+  list, for update checks only. This fixes "Trust anchor for certification path not found" when
+  clearing jsDelivr's cache, so jsDelivr serves the current version.
+- Speaker IP is checked on Save: an incomplete address like "192.168.13" is rejected with a message.
+- ADVANCED connection line shows the last network error (timeout, host unreachable, HTTP code).
+
 ## 1.21.1 (versionCode 27)
 - First setup: the speaker IP field is prefilled with 192.168.1.13; tap Save to use it.
 
