@@ -60,7 +60,7 @@ public class MainActivity extends Activity {
     static final String PREF_HIDE_ON = "hide_controls";
     static final String PREF_FAIL_LIMIT = "fail_limit";
     static final String PREF_HIDE_LOCATION = "hide_station_location";
-    static final long UPDATE_EVERY_MS = 6L * 3600 * 1000;
+    static final long UPDATE_EVERY_MS = 3600L * 1000; // hourly
 
     static final int C_BG = 0xFF000000;
     static final int C_TEXT = 0xFFE8E8EA;
@@ -279,6 +279,8 @@ public class MainActivity extends Activity {
     final Runnable pollLoop = new Runnable() {
         public void run() {
             poll();
+            // the kiosk app stays in front for days, so the update check runs from here too
+            if (System.currentTimeMillis() - lastUpdateCheck > UPDATE_EVERY_MS) checkForUpdates(false);
             if (resumed) ui.postDelayed(this, POLL_MS);
         }
     };

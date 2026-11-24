@@ -58,8 +58,16 @@ class Updater {
      * Returns update info if a newer version exists, null if up to date.
      * customUrl empty = try AUTO_URLS in order. Throws with every source's error if all fail.
      */
+    /** Asks jsDelivr to drop its cached copy (it keeps branch files up to 12 h otherwise). */
+    static final String PURGE_URL =
+            "https://purge.jsdelivr.net/gh/umilan/yama-remo@main/android/version.json";
+
     static Info check(Context ctx, String customUrl) throws Exception {
-        String[] urls = (customUrl == null || customUrl.length() == 0) ? AUTO_URLS : new String[] { customUrl };
+        boolean auto = customUrl == null || customUrl.length() == 0;
+        String[] urls = auto ? AUTO_URLS : new String[] { customUrl };
+        if (auto) {
+            try { get(PURGE_URL); Thread.sleep(1500); } catch (Exception ignored) { /* the check still works, maybe with a stale copy */ }
+        }
         StringBuilder errors = new StringBuilder();
         for (String jsonUrl : urls) {
             try {

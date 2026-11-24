@@ -28,7 +28,8 @@ apksigner verify --min-sdk-version 15 yamaremo-kiosk.apk
 # version.json tells installed apps that this build is available (self-update)
 VC=$(sed -n 's/.*android:versionCode="\([0-9]*\)".*/\1/p' AndroidManifest.xml)
 VN=$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' AndroidManifest.xml)
-printf '{"versionCode": %s, "versionName": "%s", "apk": "yamaremo-kiosk.apk"}\n' "$VC" "$VN" > version.json
+# apk points at the per-version file, so a cached copy of an older APK can never be served
+printf '{"versionCode": %s, "versionName": "%s", "apk": "releases/yamaremo-kiosk-%s.apk"}\n' "$VC" "$VN" "$VN" > version.json
 mkdir -p releases
 cp yamaremo-kiosk.apk "releases/yamaremo-kiosk-$VN.apk"
 cat version.json

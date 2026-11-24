@@ -39,7 +39,7 @@ and `proxy.py` isn't needed.
 
 ## Updating from the tablet
 
-The app checks for a newer version every 6 hours, and you can check by hand in the admin settings
+The app checks for a newer version every hour (and clears jsDelivr's cache first, so new versions show up right away), and you can check by hand in the admin settings
 (double-tap the clock, then **Check for updates now**). When a newer build is in the repo, an amber
 **Update x.y** appears under the clock. Tap it, then tap **Install** in Android's installer.
 Your settings are kept.

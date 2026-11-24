@@ -1,5 +1,14 @@
 # Android kiosk app — changelog
 
+## 1.15 (versionCode 19)
+- Faster updates:
+  - Before every check the app asks jsDelivr to drop its cached `version.json` (purge), so a new
+    version shows up right away instead of up to 12 hours later.
+  - `version.json` now points at the per-version APK (`releases/yamaremo-kiosk-x.y.apk`), so a stale
+    cached APK can't be downloaded.
+  - Automatic check every hour, also while the app stays in front (before, it only ran when the
+    app came back to the foreground, which almost never happens in kiosk mode).
+
 ## 1.14 (versionCode 18)
 - Colours swapped while a song plays: artist in full white, song title dimmed grey.
 
