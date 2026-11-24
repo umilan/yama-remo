@@ -1,5 +1,10 @@
 # Android kiosk app — changelog
 
+## 1.12 (versionCode 15)
+- Radio playing without song info (the station sends "-") shows "No track info" with the station
+  name below, instead of a lone "-" and "Radio". Any title without letters or digits counts as no info.
+- Radio song without an artist: the station name takes the artist row instead of "Radio".
+
 ## 1.11 (versionCode 14)
 - When the action row fades out, the now-playing text slides down to the middle of the freed space;
   it slides back up when the row returns.

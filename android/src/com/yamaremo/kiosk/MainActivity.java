@@ -527,6 +527,13 @@ public class MainActivity extends Activity {
 
     final Runnable rerender = new Runnable() { public void run() { render(); } };
 
+    /** True if the text has at least one letter or digit ("-" or "..." doesn't count). */
+    static boolean hasText(String t) {
+        if (t == null) return false;
+        for (int i = 0; i < t.length(); i++) if (Character.isLetterOrDigit(t.charAt(i))) return true;
+        return false;
+    }
+
     /** {headline, hint} when there is no song to show, based on what the speaker reports. */
     String[] situation(String station) {
         long now = System.currentTimeMillis();
@@ -537,7 +544,7 @@ public class MainActivity extends Activity {
         if (now - inputChangedAt < SETTLE_MS)
             return new String[] { "Switching to " + src + "\u2026", "" };
         if ("net_radio".equals(input)) {
-            if (playingNow) return new String[] { "Tuning in\u2026", TextUtils.isEmpty(station) ? "Radio" : station };
+            if (playingNow) return new String[] { "No track info", TextUtils.isEmpty(station) ? "Radio" : station };
             if (!TextUtils.isEmpty(station)) return new String[] { station, "Stopped \u2013 tap Play to resume" };
             return new String[] { "Radio", "Choose a station in the MusicCast app" };
         }
@@ -659,7 +666,10 @@ public class MainActivity extends Activity {
                 String[] parts = splitArtistSong(track);
                 by = parts[0];
                 song = parts[1];
+                // song but no artist: the station name takes the artist row
+                if (TextUtils.isEmpty(by) && hasText(song)) { by = station; station = ""; }
             }
+            if (!hasText(song)) song = ""; // stations send "-" or similar when they have no info
             stationText.setText(station);
             stationText.setVisibility(TextUtils.isEmpty(station) ? View.GONE : View.VISIBLE);
             if (!TextUtils.isEmpty(song)) {
