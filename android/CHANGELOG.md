@@ -1,5 +1,14 @@
 # Android kiosk app — changelog
 
+## 1.42.1 (versionCode 52)
+- Fix/diagnostics for switching radio stations:
+  - Favourites are read fresh from the speaker on every Prev/Next station (were cached 10 min).
+  - The playing station is matched to a favourite more loosely (ignoring case, location,
+    underscores and punctuation), so Next doesn't land on the station already playing.
+  - The speaker's answer to the switch is checked; a refusal shows "Speaker refused … (code N)".
+  - Messages: "Next station 2/5", "Only one saved station…", "Couldn't read saved stations…".
+  - ADVANCED connection info lists the radio favourites the speaker reports.
+
 ## 1.42 (versionCode 51)
 - Messages triggered by gestures (swipe up/down/left/right, pinch, double tap) are shown in the
   accent colour, the amber used for Muted, on both lines. The colour is one constant, `C_ACCENT`

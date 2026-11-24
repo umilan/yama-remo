@@ -858,56 +858,88 @@ public class MainActivity extends Activity {
         return prefs.getBoolean(PREF_HIDE_LOCATION, true) ? stripLocation(st) : st;
     }
 
+    volatile String presetDiag = "";
+
+    /** Lower-case station name without location, underscores and punctuation, for matching. */
+    static String norm(String st) {
+        return stripLocation(st == null ? "" : st).toLowerCase().replace('_', ' ').replaceAll("[^\\p{L}\\p{N} ]", "").trim();
+    }
+
     void stepStation(final int step) {
         if (TextUtils.isEmpty(ip())) return;
         final String currentStation = !TextUtils.isEmpty(artist) ? artist : album;
         net.execute(new Runnable() {
             public void run() {
-                if (radioPresets == null || System.currentTimeMillis() - presetsLoadedAt > 10 * 60 * 1000) {
-                    java.util.List<String[]> list = new java.util.ArrayList<String[]>();
-                    String r = requestRetry("netusb/getPresetInfo");
-                    try {
-                        org.json.JSONArray arr = new JSONObject(r).getJSONArray("preset_info");
-                        for (int i = 0; i < arr.length(); i++) {
-                            JSONObject p = arr.getJSONObject(i);
-                            String name = p.optString("text", "");
-                            if ("net_radio".equals(p.optString("input")) && name.length() > 0)
-                                list.add(new String[] { String.valueOf(i + 1), name });
-                        }
-                        radioPresets = list;
-                        presetsLoadedAt = System.currentTimeMillis();
-                    } catch (Exception e) {
-                        if (radioPresets == null) radioPresets = list;
+                // always read the favourites fresh: they may have changed in the MusicCast app
+                java.util.List<String[]> list = new java.util.ArrayList<String[]>();
+                String r = requestRetry("netusb/getPresetInfo");
+                String readError = null;
+                try {
+                    JSONObject j = new JSONObject(r);
+                    if (j.optInt("response_code", 0) != 0) readError = "code " + j.optInt("response_code");
+                    org.json.JSONArray arr = j.getJSONArray("preset_info");
+                    for (int i = 0; i < arr.length(); i++) {
+                        JSONObject p = arr.getJSONObject(i);
+                        String name = p.optString("text", "");
+                        if ("net_radio".equals(p.optString("input")) && name.length() > 0)
+                            list.add(new String[] { String.valueOf(i + 1), name });
                     }
+                    radioPresets = list;
+                    presetsLoadedAt = System.currentTimeMillis();
+                } catch (Exception e) {
+                    if (readError == null) readError = r == null ? "no answer" : "unexpected answer";
+                    if (radioPresets != null) list = radioPresets;
                 }
-                final java.util.List<String[]> presets = radioPresets;
+                final java.util.List<String[]> presets = list;
+                StringBuilder names = new StringBuilder();
+                for (String[] p : presets) names.append(names.length() > 0 ? ", " : "").append(p[0]).append(": ").append(p[1]);
+                presetDiag = "Radio favourites on the speaker: " + presets.size()
+                        + (presets.isEmpty() ? "" : " (" + names + ")")
+                        + (readError != null ? " \u2013 last read failed: " + readError : "");
                 if (presets.isEmpty()) {
+                    final String re = readError;
                     ui.post(new Runnable() { public void run() {
-                        flash("No saved stations \u2013 add favourites in MusicCast", C_AMBER, 4000);
+                        flash(re != null ? "Couldn't read saved stations (" + re + ")"
+                                : "No saved stations \u2013 add favourites in MusicCast", C_AMBER, 4000);
                     } });
                     return;
                 }
-                // start from the station that's playing now, if it is one of the presets
-                int cur = presetIndex;
-                for (int i = 0; i < presets.size(); i++) {
-                    String a = stripLocation(presets.get(i)[1]).toLowerCase(), b = stripLocation(currentStation).toLowerCase();
-                    if (b.length() > 0 && (a.equals(b) || a.contains(b) || b.contains(a))) { cur = i; break; }
+                // start from the station that's playing now, if it is one of the favourites
+                int cur = -1;
+                String b = norm(currentStation);
+                for (int i = 0; i < presets.size() && b.length() > 0; i++) {
+                    String a = norm(presets.get(i)[1]);
+                    if (a.length() > 0 && (a.equals(b) || a.contains(b) || b.contains(a))) { cur = i; break; }
                 }
-                int n = presets.size();
-                int next = cur < 0 ? (step > 0 ? 0 : n - 1) : ((cur + step) % n + n) % n;
+                if (cur < 0) cur = presetIndex >= 0 && presetIndex < presets.size() ? presetIndex : -1;
+                final int n = presets.size();
+                if (n == 1 && cur == 0) {
+                    ui.post(new Runnable() { public void run() {
+                        flash("Only one saved station \u2013 add more favourites in MusicCast", C_AMBER, 4000);
+                    } });
+                    return;
+                }
+                final int next = cur < 0 ? (step > 0 ? 0 : n - 1) : ((cur + step) % n + n) % n;
                 presetIndex = next;
                 final String[] target = presets.get(next);
                 ui.post(new Runnable() { public void run() {
                     pendingStation = target[1];
                     stationChangedAt = System.currentTimeMillis();
                     trackAtSwitch = track;
-                    render();
+                    flash((step > 0 ? "Next station " : "Previous station ") + (next + 1) + "/" + n, C_TEXT, 1500);
                     ui.removeCallbacks(rerender);
                     ui.postDelayed(rerender, SETTLE_MS + 100);
                 } });
-                final boolean ok = request("netusb/recallPreset?zone=main&num=" + target[0]) != null;
+                String resp = request("netusb/recallPreset?zone=main&num=" + target[0]);
+                int code = -1;
+                try { code = resp == null ? -1 : new JSONObject(resp).optInt("response_code", 0); } catch (Exception ignored) { }
+                final int fc = code;
                 ui.post(new Runnable() { public void run() {
-                    if (!ok) { stationChangedAt = 0; flash("Couldn't switch to " + cleanStation(target[1]), C_AMBER, 3000); }
+                    if (fc != 0) {
+                        stationChangedAt = 0;
+                        flash(fc < 0 ? "Couldn't reach the speaker"
+                                : "Speaker refused " + cleanStation(target[1]) + " (code " + fc + ")", C_AMBER, 4000);
+                    }
                     render();
                     ui.postDelayed(new Runnable() { public void run() { poll(); } }, 1200);
                 } });
@@ -1805,7 +1837,8 @@ public class MainActivity extends Activity {
         return "Connection: " + f + " of " + t + " requests failed in the last " + mins + " min ("
                 + (t > 0 ? Math.round(100f * f / t) : 0) + "%), longest run " + worstStreak
                 + " failed checks in a row, last failure " + last + "."
-                + (lastNetError.length() > 0 ? "\nLast error: " + lastNetError : "");
+                + (lastNetError.length() > 0 ? "\nLast error: " + lastNetError : "")
+                + (presetDiag.length() > 0 ? "\n" + presetDiag : "");
     }
 
     /** Read-only requests are safe to repeat: retry once after a short pause. */
