@@ -1,5 +1,12 @@
 # Android kiosk app — changelog
 
+## 1.3.1 (versionCode 5)
+- Fix: update check failed on Android 4.2 with "SSL handshake aborted … unsupported protocol".
+  The app now opens HTTPS connections itself with TLS 1.2/1.1/1.0 and SNI, and doesn't fall
+  back to SSLv3.
+- Update sources tried in order: jsDelivr, GitHub raw, plain-HTTP jsDelivr. An empty update URL
+  (or the old GitHub default) means automatic. When every source fails, the error lists each one.
+
 ## 1.3 (versionCode 4)
 - New minimal black design: text source tabs with OFF at the top, big centred track and artist,
   outline transport icons with captions, dotted volume bar (one dot per step).

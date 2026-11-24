@@ -543,11 +543,12 @@ public class MainActivity extends Activity {
             box.addView(pinEdit);
 
             TextView l3 = new TextView(this);
-            l3.setText("Update URL (version.json)");
+            l3.setText("Update URL (version.json) \u2013 leave empty for automatic");
             box.addView(l3);
             updateUrlEdit.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
             updateUrlEdit.setSingleLine(true);
             updateUrlEdit.setText(updateUrl());
+            updateUrlEdit.setHint("Automatic (jsDelivr, GitHub)");
             box.addView(updateUrlEdit);
             android.widget.Button chk = new android.widget.Button(this);
             chk.setText("Check for updates now  (installed: " + versionName() + ")");
@@ -600,9 +601,10 @@ public class MainActivity extends Activity {
         return sv;
     }
 
+    /** Custom update URL, or "" for automatic (jsDelivr, then GitHub, then plain HTTP). */
     String updateUrl() {
         String u = prefs.getString(PREF_UPDATE_URL, "").trim();
-        return u.length() > 0 ? u : Updater.DEFAULT_URL;
+        return u.equals(Updater.OLD_DEFAULT_URL) ? "" : u;
     }
 
     String versionName() {

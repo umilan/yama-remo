@@ -2,6 +2,7 @@ package com.yamaremo.kiosk;
 
 import android.content.Context;
 import android.content.Intent;
+import android.net.SSLCertificateSocketFactory;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Environment;
@@ -13,15 +14,14 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.InetAddress;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URL;
 
 import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLSocket;
-import javax.net.ssl.SSLSocketFactory;
 
 /**
  * Self-update: reads version.json from the update URL, and if it names a
@@ -33,8 +33,20 @@ import javax.net.ssl.SSLSocketFactory;
  */
 class Updater {
 
-    static final String DEFAULT_URL =
+    /** Old built-in default; if it is still saved in settings it means "automatic". */
+    static final String OLD_DEFAULT_URL =
             "https://raw.githubusercontent.com/umilan/yama-remo/main/android/version.json";
+
+    /**
+     * Tried in order when no custom URL is set. jsDelivr still accepts the old TLS
+     * setups of Android 4.x; plain HTTP is the last resort and is safe enough here
+     * because Android only installs an update signed with the same key.
+     */
+    static final String[] AUTO_URLS = {
+            "https://cdn.jsdelivr.net/gh/umilan/yama-remo@main/android/version.json",
+            "https://raw.githubusercontent.com/umilan/yama-remo/main/android/version.json",
+            "http://cdn.jsdelivr.net/gh/umilan/yama-remo@main/android/version.json",
+    };
 
     static class Info {
         int versionCode;
@@ -42,16 +54,35 @@ class Updater {
         String apkUrl;
     }
 
-    /** Returns update info if a newer version exists, null if up to date. Throws on network errors. */
-    static Info check(Context ctx, String jsonUrl) throws Exception {
-        String body = new String(get(jsonUrl), "UTF-8");
-        JSONObject j = new JSONObject(body);
-        Info i = new Info();
-        i.versionCode = j.getInt("versionCode");
-        i.versionName = j.optString("versionName", String.valueOf(i.versionCode));
-        i.apkUrl = new URL(new URL(jsonUrl), j.optString("apk", "yamaremo-kiosk.apk")).toString();
-        int current = ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0).versionCode;
-        return i.versionCode > current ? i : null;
+    /**
+     * Returns update info if a newer version exists, null if up to date.
+     * customUrl empty = try AUTO_URLS in order. Throws with every source's error if all fail.
+     */
+    static Info check(Context ctx, String customUrl) throws Exception {
+        String[] urls = (customUrl == null || customUrl.length() == 0) ? AUTO_URLS : new String[] { customUrl };
+        StringBuilder errors = new StringBuilder();
+        for (String jsonUrl : urls) {
+            try {
+                String body = new String(get(jsonUrl), "UTF-8");
+                JSONObject j = new JSONObject(body);
+                Info i = new Info();
+                i.versionCode = j.getInt("versionCode");
+                i.versionName = j.optString("versionName", String.valueOf(i.versionCode));
+                i.apkUrl = new URL(new URL(jsonUrl), j.optString("apk", "yamaremo-kiosk.apk")).toString();
+                int current = ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0).versionCode;
+                return i.versionCode > current ? i : null;
+            } catch (Exception e) {
+                if (errors.length() > 0) errors.append("\n");
+                errors.append(new URL(jsonUrl).getHost()).append(": ").append(short_(e));
+            }
+        }
+        throw new IOException(errors.toString());
+    }
+
+    static String short_(Exception e) {
+        String m = e.getMessage();
+        if (m != null && m.length() > 140) m = m.substring(0, 140) + "\u2026";
+        return e.getClass().getSimpleName() + (m != null ? " " + m : "");
     }
 
     /** Downloads the APK to shared storage (the installer must be able to read it). */
@@ -76,71 +107,72 @@ class Updater {
         ctx.startActivity(i);
     }
 
+    /**
+     * Minimal HTTP/1.0 GET over our own sockets. Android 4.x's HttpsURLConnection
+     * silently retries with SSLv3 after a failed handshake, which hides the real error
+     * and never works with modern servers; here TLS 1.2/1.1/1.0 are forced, SNI is set
+     * and the hostname is verified.
+     */
     static byte[] get(String url) throws Exception {
-        HttpURLConnection c = null;
-        try {
-            for (int hop = 0; hop < 5; hop++) {
-                c = (HttpURLConnection) new URL(url).openConnection();
-                if (c instanceof HttpsURLConnection && Build.VERSION.SDK_INT < 20)
-                    ((HttpsURLConnection) c).setSSLSocketFactory(tls12());
-                c.setConnectTimeout(10000);
-                c.setReadTimeout(30000);
-                c.setUseCaches(false);
-                c.setInstanceFollowRedirects(false);
-                int code = c.getResponseCode();
-                if (code >= 300 && code < 400 && c.getHeaderField("Location") != null) {
-                    url = new URL(new URL(url), c.getHeaderField("Location")).toString();
-                    c.disconnect();
-                    continue;
-                }
-                if (code != 200) throw new IOException("HTTP " + code);
-                InputStream in = c.getInputStream();
-                ByteArrayOutputStream out = new ByteArrayOutputStream();
-                byte[] buf = new byte[16384];
-                int n;
-                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-                in.close();
-                return out.toByteArray();
-            }
-            throw new IOException("Too many redirects");
-        } finally {
-            if (c != null) c.disconnect();
-        }
-    }
-
-    // Android 4.1-4.4 support TLS 1.2 but don't enable it by default; GitHub requires it.
-    private static SSLSocketFactory tls12Factory;
-
-    private static synchronized SSLSocketFactory tls12() throws Exception {
-        if (tls12Factory == null) {
-            SSLContext ctx = SSLContext.getInstance("TLS");
-            ctx.init(null, null, null);
-            tls12Factory = new Tls12Factory(ctx.getSocketFactory());
-        }
-        return tls12Factory;
-    }
-
-    private static class Tls12Factory extends SSLSocketFactory {
-        private final SSLSocketFactory d;
-        Tls12Factory(SSLSocketFactory d) { this.d = d; }
-
-        private Socket on(Socket s) {
-            if (s instanceof SSLSocket) {
-                SSLSocket ss = (SSLSocket) s;
+        for (int hop = 0; hop < 5; hop++) {
+            URL u = new URL(url);
+            boolean https = "https".equalsIgnoreCase(u.getProtocol());
+            String host = u.getHost();
+            int port = u.getPort() > 0 ? u.getPort() : (https ? 443 : 80);
+            Socket s = new Socket();
+            s.connect(new InetSocketAddress(host, port), 15000);
+            s.setSoTimeout(30000);
+            if (https) {
+                SSLCertificateSocketFactory f = (SSLCertificateSocketFactory) SSLCertificateSocketFactory.getDefault(15000, null);
+                SSLSocket ss = (SSLSocket) f.createSocket(s, host, port, true);
                 java.util.List<String> want = new java.util.ArrayList<String>();
                 for (String p : ss.getSupportedProtocols())
                     if (p.equals("TLSv1.2") || p.equals("TLSv1.1") || p.equals("TLSv1")) want.add(p);
                 ss.setEnabledProtocols(want.toArray(new String[0]));
+                if (Build.VERSION.SDK_INT >= 17) f.setHostname(ss, host);
+                ss.startHandshake();
+                if (!HttpsURLConnection.getDefaultHostnameVerifier().verify(host, ss.getSession())) {
+                    ss.close();
+                    throw new SSLException("certificate does not match " + host);
+                }
+                s = ss;
             }
-            return s;
-        }
+            try {
+                String path = u.getFile().length() > 0 ? u.getFile() : "/";
+                String req = "GET " + path + " HTTP/1.0\r\nHost: " + host + "\r\nUser-Agent: yamaremo-kiosk\r\n"
+                        + "Accept: */*\r\nConnection: close\r\n\r\n";
+                OutputStream out = s.getOutputStream();
+                out.write(req.getBytes("US-ASCII"));
+                out.flush();
+                InputStream in = s.getInputStream();
+                ByteArrayOutputStream all = new ByteArrayOutputStream();
+                byte[] buf = new byte[16384];
+                int n;
+                while ((n = in.read(buf)) > 0) all.write(buf, 0, n);
+                byte[] data = all.toByteArray();
 
-        @Override public String[] getDefaultCipherSuites() { return d.getDefaultCipherSuites(); }
-        @Override public String[] getSupportedCipherSuites() { return d.getSupportedCipherSuites(); }
-        @Override public Socket createSocket(Socket s, String h, int p, boolean a) throws IOException { return on(d.createSocket(s, h, p, a)); }
-        @Override public Socket createSocket(String h, int p) throws IOException { return on(d.createSocket(h, p)); }
-        @Override public Socket createSocket(String h, int p, InetAddress l, int lp) throws IOException { return on(d.createSocket(h, p, l, lp)); }
-        @Override public Socket createSocket(InetAddress h, int p) throws IOException { return on(d.createSocket(h, p)); }
-        @Override public Socket createSocket(InetAddress a, int p, InetAddress l, int lp) throws IOException { return on(d.createSocket(a, p, l, lp)); }
+                int hdrEnd = -1;
+                for (int i = 0; i + 3 < data.length; i++)
+                    if (data[i] == '\r' && data[i + 1] == '\n' && data[i + 2] == '\r' && data[i + 3] == '\n') { hdrEnd = i; break; }
+                if (hdrEnd < 0) throw new IOException("bad HTTP response");
+                String[] lines = new String(data, 0, hdrEnd, "ISO-8859-1").split("\r\n");
+                String[] status = lines[0].split(" ");
+                int code = status.length > 1 ? Integer.parseInt(status[1]) : 0;
+                String location = null;
+                for (String l : lines)
+                    if (l.regionMatches(true, 0, "Location:", 0, 9)) location = l.substring(9).trim();
+                if (code >= 300 && code < 400 && location != null) {
+                    url = new URL(u, location).toString();
+                    continue;
+                }
+                if (code != 200) throw new IOException("HTTP " + code);
+                byte[] body = new byte[data.length - hdrEnd - 4];
+                System.arraycopy(data, hdrEnd + 4, body, 0, body.length);
+                return body;
+            } finally {
+                try { s.close(); } catch (IOException ignored) { }
+            }
+        }
+        throw new IOException("Too many redirects");
     }
 }
