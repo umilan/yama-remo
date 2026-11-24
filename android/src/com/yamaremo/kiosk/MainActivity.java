@@ -54,6 +54,7 @@ public class MainActivity extends Activity {
     static final String PREF_SCREEN_ON = "screen_on";
     static final String PREF_BOOT = "boot";
     static final String PREF_PIN = "pin";
+    static final String DEFAULT_IP = "192.168.1.13"; // prefilled on first setup
     static final String PREF_UPDATE_URL = "update_url";
     static final String PREF_COMPACT_VOLUME = "compact_volume";
     static final String PREF_HIDE_SECS = "hide_controls_secs";
@@ -939,8 +940,8 @@ public class MainActivity extends Activity {
         final EditText ipEdit = new EditText(this);
         ipEdit.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         ipEdit.setSingleLine(true);
-        ipEdit.setText(ip());
-        ipEdit.setHint("192.168.1.50");
+        ipEdit.setText(TextUtils.isEmpty(ip()) ? DEFAULT_IP : ip());
+        ipEdit.setHint(DEFAULT_IP);
         box.addView(ipEdit);
 
         final CheckBox screenOn = new CheckBox(this);

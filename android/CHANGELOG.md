@@ -1,5 +1,8 @@
 # Android kiosk app — changelog
 
+## 1.21.1 (versionCode 27)
+- First setup: the speaker IP field is prefilled with 192.168.1.13; tap Save to use it.
+
 ## 1.21 (versionCode 26)
 - Volume row placed so the space above it (below the action-row captions) equals the space below it
   down to the physical screen edge, counting the navigation bar Android 4.x can only dim. On the
