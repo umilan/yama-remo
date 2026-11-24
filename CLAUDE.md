@@ -1,5 +1,10 @@
 # Working rules for this repo
 
+## Branch
+
+Work and push directly on `main` (the owner asked for this). The tablet's self-update reads
+`android/version.json` from `main` via jsDelivr, so a version only reaches the tablet once it is on `main`.
+
 ## Versioning (Android kiosk app, `android/`)
 
 Every feature or fix to the Android app ships as a new version:
@@ -17,8 +22,8 @@ Every feature or fix to the Android app ships as a new version:
 End every finished reply with one last line: `DONE`, then the app version as a markdown link whose
 target is the direct download of that version's APK. No separate download line.
 
-    DONE · [Android app v1.4](https://github.com/umilan/yama-remo/raw/<branch>/android/releases/yamaremo-kiosk-1.4.apk)
+    DONE · [Android app v1.4](https://github.com/umilan/yama-remo/raw/main/android/releases/yamaremo-kiosk-1.4.apk)
 
-Use the branch the commit was pushed to (`main` once merged). When the WinCE app (`wince/`, version in
+When the WinCE app (`wince/`, version in
 `APP_VERSION` in `yamaremo.c`) changed too, add it the same way:
 `DONE · [Android app v1.4](…apk) · [WinCE app v1.1](…exe)`.
