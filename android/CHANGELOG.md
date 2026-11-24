@@ -1,5 +1,11 @@
 # Android kiosk app — changelog
 
+## 1.49 (versionCode 60)
+- Radio station picker: tap the Radio tab while on Radio to get a grid of the saved stations
+  (favourites); the playing one is highlighted, tap another to switch.
+- Album art / station logo as a blurred, dimmed background behind the playing screen. ADVANCED:
+  on/off (on by default) and "Background visibility" (5–80 %, default 35 %).
+
 ## 1.48 (versionCode 59)
 - Auto-dim from room light (ADVANCED → ROOM LIGHT, on by default): night mode lowers the screen
   backlight (default 5 %) and the text brightness (default 50 %) when the room is dark, with a 1.5 s

@@ -68,6 +68,8 @@ public class MainActivity extends Activity {
     static final String PREF_TEXT_SCALE = "text_scale";
     static final String PREF_DEVICE_ID = "device_id";     // speaker identity, to follow it to a new IP
     static final String PREF_AUTODIM = "autodim";
+    static final String PREF_ART_BG = "art_background";      // album art as blurred background
+    static final String PREF_ART_LEVEL = "art_level";        // its visibility, %
     static final String PREF_DIM_CAMERA = "autodim_camera";
     static final String PREF_NIGHT_LUX = "night_lux";        // light sensor: night below this many lux
     static final String PREF_NIGHT_CAM = "night_cam";        // camera: night below this frame brightness (0-255)
@@ -161,7 +163,15 @@ public class MainActivity extends Activity {
                 | WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
                 | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
         applyScreenOn();
-        contentRoot = buildUi();
+        // album art sits behind the whole UI
+        android.widget.FrameLayout frame = new android.widget.FrameLayout(this);
+        frame.setBackgroundColor(C_BG);
+        artView = new android.widget.ImageView(this);
+        artView.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
+        artView.setVisibility(View.GONE);
+        frame.addView(artView, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        frame.addView(buildUi(), new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        contentRoot = frame;
         setContentView(contentRoot);
         autoDim = new AutoDim(this, new AutoDim.Listener() {
             public void onReading(String source, float value) { onLight(source, value); }
@@ -488,7 +498,7 @@ public class MainActivity extends Activity {
     View buildUi() {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(C_BG);
+        root.setBackgroundColor(0); // the frame behind it is black (and may show album art)
 
         // --- source tabs + OFF
         LinearLayout tabs = row();
@@ -890,86 +900,158 @@ public class MainActivity extends Activity {
         return stripLocation(st == null ? "" : st).toLowerCase().replace('_', ' ').replaceAll("[^\\p{L}\\p{N} ]", "").trim();
     }
 
+    volatile String presetReadError;
+
+    /** Worker thread: reads the radio favourites fresh from the speaker ({number, name} each). */
+    java.util.List<String[]> loadPresets() {
+        java.util.List<String[]> list = new java.util.ArrayList<String[]>();
+        String r = requestRetry("netusb/getPresetInfo");
+        String readError = null;
+        try {
+            JSONObject j = new JSONObject(r);
+            if (j.optInt("response_code", 0) != 0) readError = "code " + j.optInt("response_code");
+            org.json.JSONArray arr = j.getJSONArray("preset_info");
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject p = arr.getJSONObject(i);
+                String name = p.optString("text", "");
+                if ("net_radio".equals(p.optString("input")) && name.length() > 0)
+                    list.add(new String[] { String.valueOf(i + 1), name });
+            }
+            radioPresets = list;
+            presetsLoadedAt = System.currentTimeMillis();
+        } catch (Exception e) {
+            if (readError == null) readError = r == null ? "no answer" : "unexpected answer";
+            if (radioPresets != null) list = radioPresets;
+        }
+        presetReadError = readError;
+        StringBuilder names = new StringBuilder();
+        for (String[] p : list) names.append(names.length() > 0 ? ", " : "").append(p[0]).append(": ").append(p[1]);
+        presetDiag = "Radio favourites on the speaker: " + list.size()
+                + (list.isEmpty() ? "" : " (" + names + ")")
+                + (readError != null ? " \u2013 last read failed: " + readError : "");
+        return list;
+    }
+
+    /** Index of the playing station among the favourites, or -1. */
+    static int currentPreset(java.util.List<String[]> presets, String currentStation) {
+        String b = norm(currentStation);
+        for (int i = 0; i < presets.size() && b.length() > 0; i++) {
+            String a = norm(presets.get(i)[1]);
+            if (a.length() > 0 && (a.equals(b) || a.contains(b) || b.contains(a))) return i;
+        }
+        return -1;
+    }
+
+    void noPresetsMessage() {
+        final String re = presetReadError;
+        ui.post(new Runnable() { public void run() {
+            flash(re != null ? "Couldn't read saved stations (" + re + ")"
+                    : "No saved stations \u2013 add favourites in MusicCast", C_AMBER, 4000);
+        } });
+    }
+
+    /** Worker thread: switches to a favourite and reports a refusal. */
+    void recallPreset(final String[] target, final String message) {
+        ui.post(new Runnable() { public void run() {
+            pendingStation = target[1];
+            stationChangedAt = System.currentTimeMillis();
+            trackAtSwitch = track;
+            if (message != null) flash(message, C_TEXT, 1500); else render();
+            ui.removeCallbacks(rerender);
+            ui.postDelayed(rerender, SETTLE_MS + 100);
+        } });
+        String resp = request("netusb/recallPreset?zone=main&num=" + target[0]);
+        int code = -1;
+        try { code = resp == null ? -1 : new JSONObject(resp).optInt("response_code", 0); } catch (Exception ignored) { }
+        final int fc = code;
+        ui.post(new Runnable() { public void run() {
+            if (fc != 0) {
+                stationChangedAt = 0;
+                flash(fc < 0 ? "Couldn't reach the speaker"
+                        : "Speaker refused " + cleanStation(target[1]) + " (code " + fc + ")", C_AMBER, 4000);
+            }
+            render();
+            ui.postDelayed(new Runnable() { public void run() { poll(); } }, 1200);
+        } });
+    }
+
     void stepStation(final int step) {
         if (TextUtils.isEmpty(ip())) return;
         final String currentStation = !TextUtils.isEmpty(artist) ? artist : album;
         net.execute(new Runnable() {
             public void run() {
-                // always read the favourites fresh: they may have changed in the MusicCast app
-                java.util.List<String[]> list = new java.util.ArrayList<String[]>();
-                String r = requestRetry("netusb/getPresetInfo");
-                String readError = null;
-                try {
-                    JSONObject j = new JSONObject(r);
-                    if (j.optInt("response_code", 0) != 0) readError = "code " + j.optInt("response_code");
-                    org.json.JSONArray arr = j.getJSONArray("preset_info");
-                    for (int i = 0; i < arr.length(); i++) {
-                        JSONObject p = arr.getJSONObject(i);
-                        String name = p.optString("text", "");
-                        if ("net_radio".equals(p.optString("input")) && name.length() > 0)
-                            list.add(new String[] { String.valueOf(i + 1), name });
-                    }
-                    radioPresets = list;
-                    presetsLoadedAt = System.currentTimeMillis();
-                } catch (Exception e) {
-                    if (readError == null) readError = r == null ? "no answer" : "unexpected answer";
-                    if (radioPresets != null) list = radioPresets;
-                }
-                final java.util.List<String[]> presets = list;
-                StringBuilder names = new StringBuilder();
-                for (String[] p : presets) names.append(names.length() > 0 ? ", " : "").append(p[0]).append(": ").append(p[1]);
-                presetDiag = "Radio favourites on the speaker: " + presets.size()
-                        + (presets.isEmpty() ? "" : " (" + names + ")")
-                        + (readError != null ? " \u2013 last read failed: " + readError : "");
-                if (presets.isEmpty()) {
-                    final String re = readError;
-                    ui.post(new Runnable() { public void run() {
-                        flash(re != null ? "Couldn't read saved stations (" + re + ")"
-                                : "No saved stations \u2013 add favourites in MusicCast", C_AMBER, 4000);
-                    } });
-                    return;
-                }
-                // start from the station that's playing now, if it is one of the favourites
-                int cur = -1;
-                String b = norm(currentStation);
-                for (int i = 0; i < presets.size() && b.length() > 0; i++) {
-                    String a = norm(presets.get(i)[1]);
-                    if (a.length() > 0 && (a.equals(b) || a.contains(b) || b.contains(a))) { cur = i; break; }
-                }
+                java.util.List<String[]> presets = loadPresets(); // fresh: may have changed in MusicCast
+                if (presets.isEmpty()) { noPresetsMessage(); return; }
+                int cur = currentPreset(presets, currentStation);
                 if (cur < 0) cur = presetIndex >= 0 && presetIndex < presets.size() ? presetIndex : -1;
-                final int n = presets.size();
+                int n = presets.size();
                 if (n == 1 && cur == 0) {
                     ui.post(new Runnable() { public void run() {
                         flash("Only one saved station \u2013 add more favourites in MusicCast", C_AMBER, 4000);
                     } });
                     return;
                 }
-                final int next = cur < 0 ? (step > 0 ? 0 : n - 1) : ((cur + step) % n + n) % n;
+                int next = cur < 0 ? (step > 0 ? 0 : n - 1) : ((cur + step) % n + n) % n;
                 presetIndex = next;
-                final String[] target = presets.get(next);
-                ui.post(new Runnable() { public void run() {
-                    pendingStation = target[1];
-                    stationChangedAt = System.currentTimeMillis();
-                    trackAtSwitch = track;
-                    flash((step > 0 ? "Next station " : "Previous station ") + (next + 1) + "/" + n, C_TEXT, 1500);
-                    ui.removeCallbacks(rerender);
-                    ui.postDelayed(rerender, SETTLE_MS + 100);
-                } });
-                String resp = request("netusb/recallPreset?zone=main&num=" + target[0]);
-                int code = -1;
-                try { code = resp == null ? -1 : new JSONObject(resp).optInt("response_code", 0); } catch (Exception ignored) { }
-                final int fc = code;
-                ui.post(new Runnable() { public void run() {
-                    if (fc != 0) {
-                        stationChangedAt = 0;
-                        flash(fc < 0 ? "Couldn't reach the speaker"
-                                : "Speaker refused " + cleanStation(target[1]) + " (code " + fc + ")", C_AMBER, 4000);
-                    }
-                    render();
-                    ui.postDelayed(new Runnable() { public void run() { poll(); } }, 1200);
+                recallPreset(presets.get(next), (step > 0 ? "Next station " : "Previous station ") + (next + 1) + "/" + n);
+            }
+        });
+    }
+
+    /** Tap on the active Radio tab: a grid of the saved stations to pick from. */
+    void showStationPicker() {
+        if (TextUtils.isEmpty(ip())) return;
+        final String currentStation = !TextUtils.isEmpty(artist) ? artist : album;
+        net.execute(new Runnable() {
+            public void run() {
+                final java.util.List<String[]> presets = loadPresets();
+                if (presets.isEmpty()) { noPresetsMessage(); return; }
+                final int cur = currentPreset(presets, currentStation);
+                ui.post(new Runnable() { public void run() { stationGrid(presets, cur); } });
+            }
+        });
+    }
+
+    void stationGrid(final java.util.List<String[]> presets, final int cur) {
+        final android.widget.GridView grid = new android.widget.GridView(this);
+        grid.setNumColumns(3);
+        grid.setVerticalSpacing(dp(8));
+        grid.setHorizontalSpacing(dp(8));
+        grid.setPadding(dp(12), dp(12), dp(12), dp(12));
+        grid.setAdapter(new android.widget.BaseAdapter() {
+            public int getCount() { return presets.size(); }
+            public Object getItem(int i) { return presets.get(i); }
+            public long getItemId(int i) { return i; }
+            public View getView(int i, View cv, ViewGroup parent) {
+                TextView t = cv instanceof TextView ? (TextView) cv : new TextView(MainActivity.this);
+                t.setText(cleanStation(presets.get(i)[1]));
+                t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20 * Fonts.scale);
+                t.setTypeface(Fonts.bold);
+                t.setGravity(Gravity.CENTER);
+                t.setMinHeight(dp(84));
+                t.setPadding(dp(8), dp(8), dp(8), dp(8));
+                t.setMaxLines(2);
+                t.setEllipsize(TextUtils.TruncateAt.END);
+                t.setTextColor(i == cur ? C_BG : C_TEXT);
+                t.setBackgroundColor(i == cur ? C_ACCENT : 0xFF2A2A2A);
+                return t;
+            }
+        });
+        final AlertDialog dlg = new AlertDialog.Builder(this)
+                .setTitle("Radio stations")
+                .setView(grid)
+                .setNegativeButton("Close", null)
+                .create();
+        grid.setOnItemClickListener(new android.widget.AdapterView.OnItemClickListener() {
+            public void onItemClick(android.widget.AdapterView<?> p, View v, final int i, long id) {
+                dlg.dismiss();
+                presetIndex = i;
+                net.execute(new Runnable() { public void run() {
+                    recallPreset(presets.get(i), "Station " + (i + 1) + "/" + presets.size());
                 } });
             }
         });
+        dlg.show();
     }
 
     /** True if the text has at least one letter or digit ("-" or "..." doesn't count). */
@@ -1231,6 +1313,10 @@ public class MainActivity extends Activity {
         offBtn.invalidate();
 
         showClock(!on);
+        boolean showArt = on && artReady && prefs.getBoolean(PREF_ART_BG, true) && !"".equals(artUrl);
+        int av = showArt ? View.VISIBLE : View.GONE;
+        if (artView.getVisibility() != av) artView.setVisibility(av);
+        artView.setAlpha(prefs.getInt(PREF_ART_LEVEL, 35) / 100f);
         // line-in inputs have no tracks: only Settings and Mute stay in the row
         if (!switching) setTransportAllowed(on); // applied after the crossfade's fade-out
         int trackCtl = isLineIn(input) ? View.INVISIBLE : View.VISIBLE; // keep Settings/Mute in place
@@ -1374,6 +1460,8 @@ public class MainActivity extends Activity {
         final EditText pinEdit = new EditText(this);
         final EditText updateUrlEdit = new EditText(this);
         final CheckBox compactVol = new CheckBox(this);
+        final CheckBox artCb = new CheckBox(this);
+        final EditText artLevelEdit = new EditText(this);
         final CheckBox hideLoc = new CheckBox(this);
         final CheckBox followCb = new CheckBox(this);
         final CheckBox gestCb = new CheckBox(this);
@@ -1444,6 +1532,15 @@ public class MainActivity extends Activity {
             compactVol.setText("Volume bar without bottom padding");
             compactVol.setChecked(prefs.getBoolean(PREF_COMPACT_VOLUME, true));
             box.addView(compactVol);
+            artCb.setText("Album art / station logo as a blurred background");
+            artCb.setChecked(prefs.getBoolean(PREF_ART_BG, true));
+            box.addView(artCb);
+            TextView all = new TextView(this);
+            all.setText("Background visibility (%)");
+            box.addView(all);
+            artLevelEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
+            artLevelEdit.setText(String.valueOf(prefs.getInt(PREF_ART_LEVEL, 35)));
+            box.addView(sliderRow(artLevelEdit, 5, 80));
             hideLoc.setText("Hide location in radio station names, e.g. \"(Bratislava/Slovak)\"");
             hideLoc.setChecked(prefs.getBoolean(PREF_HIDE_LOCATION, true));
             box.addView(hideLoc);
@@ -1565,6 +1662,9 @@ public class MainActivity extends Activity {
                             e.putString(PREF_PIN, pinEdit.getText().toString().trim());
                             e.putString(PREF_UPDATE_URL, updateUrlEdit.getText().toString().trim());
                             e.putBoolean(PREF_COMPACT_VOLUME, compactVol.isChecked());
+                            e.putBoolean(PREF_ART_BG, artCb.isChecked());
+                            e.putInt(PREF_ART_LEVEL, intOf(artLevelEdit, 5, 80, prefs.getInt(PREF_ART_LEVEL, 35)));
+                            artUrl = "\u0000"; // reload/refresh the background with the new setting on the next poll
                             e.putBoolean(PREF_HIDE_LOCATION, hideLoc.isChecked());
                             e.putBoolean(PREF_FOLLOWER, followCb.isChecked());
                             e.putBoolean(PREF_GESTURES, gestCb.isChecked());
@@ -1832,6 +1932,8 @@ public class MainActivity extends Activity {
     }
 
     void selectInput(int idx) {
+        // the Radio tab while already on Radio: pick a station
+        if ("net_radio".equals(SRC_ID[idx]) && "net_radio".equals(input) && connected && powerOn) { showStationPicker(); return; }
         long now = System.currentTimeMillis();
         if (!powerOn) {
             powerOn = true; powerTarget = true; powerChangedAt = now;
@@ -1942,6 +2044,7 @@ public class MainActivity extends Activity {
                     track = j.optString("track", "");
                     artist = j.optString("artist", "");
                     album = j.optString("album", "");
+                    updateArt(j.optString("albumart_url", ""));
                 } else {
                     track = "";
                     // stopped radio: keep the station name for "Stopped" text
@@ -2055,6 +2158,62 @@ public class MainActivity extends Activity {
         // hysteresis, so it doesn't flicker around the threshold
         if (!night && value < th) applyNight(true);
         else if (night && value > th * 1.3f + 3) applyNight(false);
+    }
+
+    // ------------------------------------------------------------------
+    // Album art background
+    // ------------------------------------------------------------------
+    android.widget.ImageView artView;
+    String artUrl = "";
+    boolean artReady;
+
+    void updateArt(final String path) {
+        if (path.equals(artUrl)) return;
+        artUrl = path;
+        artReady = false;
+        artView.setImageDrawable(null);
+        if (path.length() == 0 || !prefs.getBoolean(PREF_ART_BG, true)) { render(); return; }
+        final String url = path.startsWith("http") ? path : "http://" + ip() + (path.startsWith("/") ? "" : "/") + path;
+        new Thread(new Runnable() { public void run() {
+            final android.graphics.Bitmap b = blurredArt(url);
+            ui.post(new Runnable() { public void run() {
+                if (!path.equals(artUrl) || b == null) return;
+                artView.setImageBitmap(b);
+                artReady = true;
+                render();
+            } });
+        } }).start();
+    }
+
+    /** Downloads the cover small and blurs it cheaply: shrink to a few pixels, scale back up smoothly. */
+    static android.graphics.Bitmap blurredArt(String url) {
+        HttpURLConnection c = null;
+        try {
+            c = (HttpURLConnection) new URL(url).openConnection();
+            c.setConnectTimeout(4000);
+            c.setReadTimeout(8000);
+            InputStream in = c.getInputStream();
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            in.close();
+            byte[] data = out.toByteArray();
+            android.graphics.BitmapFactory.Options o = new android.graphics.BitmapFactory.Options();
+            o.inJustDecodeBounds = true;
+            android.graphics.BitmapFactory.decodeByteArray(data, 0, data.length, o);
+            o.inSampleSize = Math.max(1, Math.min(o.outWidth, o.outHeight) / 128);
+            o.inJustDecodeBounds = false;
+            android.graphics.Bitmap b = android.graphics.BitmapFactory.decodeByteArray(data, 0, data.length, o);
+            if (b == null) return null;
+            android.graphics.Bitmap tiny = android.graphics.Bitmap.createScaledBitmap(b, 16, Math.max(1, 16 * b.getHeight() / b.getWidth()), true);
+            android.graphics.Bitmap mid = android.graphics.Bitmap.createScaledBitmap(tiny, 64, Math.max(1, 64 * b.getHeight() / b.getWidth()), true);
+            return android.graphics.Bitmap.createScaledBitmap(mid, 256, Math.max(1, 256 * b.getHeight() / b.getWidth()), true);
+        } catch (Throwable t) {
+            return null;
+        } finally {
+            if (c != null) c.disconnect();
+        }
     }
 
     void applyNight(boolean on) {
