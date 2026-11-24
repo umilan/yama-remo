@@ -99,9 +99,9 @@ public class MainActivity extends Activity {
     long volumeHoldUntil;
 
     // views
-    Btn otherTab, offBtn, prevBtn, shuffleBtn, settingsBtn, playBtn, muteBtn, repeatBtn, nextBtn, volDn, volUp, updateBtn;
+    Btn otherTab, offBtn, prevBtn, shuffleBtn, settingsBtn, playBtn, muteBtn, repeatBtn, nextBtn, volDn, volUp;
     Btn[] srcBtns = new Btn[SRC_ID.length];
-    TextView trackText, artistText, stationText, clockText, dateText, settingsText, ipText;
+    TextView trackText, artistText, stationText, clockText, dateText, settingsText, ipText, updateText;
     android.widget.FrameLayout bottom;
     boolean transportAllowed = true; // speaker on and the input has tracks (first render() corrects it)
     boolean transportAwake = true; // false while auto-hidden
@@ -501,32 +501,30 @@ public class MainActivity extends Activity {
         volRow.addView(volUp, new LinearLayout.LayoutParams(dp(128), ViewGroup.LayoutParams.MATCH_PARENT));
         bottom.addView(volRow);
 
+        // clock-screen footer: "Settings · v1.29 · IP …" centred, one text style, each part tappable
         offRow = row();
-        offRow.setGravity(Gravity.CENTER_VERTICAL);
-        settingsText = text("Settings", 20, C_DIM, true);
-        settingsText.setPadding(dp(64), 0, dp(24), 0);
-        settingsText.setGravity(Gravity.CENTER_VERTICAL);
+        offRow.setGravity(Gravity.CENTER);
+        settingsText = footerText();
+        settingsText.setText("Settings");
         settingsText.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { showSettings(true); }
         });
-        updateBtn = new Btn(this);
-        updateBtn.fg = C_AMBER;
-        updateBtn.textSize = 20;
-        updateBtn.setOnClickListener(new View.OnClickListener() {
+        updateText = footerText();
+        updateText.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                // shows "Update x.y" when one is waiting, otherwise the installed version (tap = check)
+                // "Update x.y" when one is waiting, otherwise the installed version (tap = check)
                 if (pendingUpdate != null) downloadAndInstall(pendingUpdate); else checkForUpdates(true);
             }
         });
-        ipText = text("", 20, C_DIM, true);
-        ipText.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
-        ipText.setPadding(dp(24), 0, dp(64), 0);
+        ipText = footerText();
         ipText.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { showSettings(false); }
         });
-        offRow.addView(settingsText, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        offRow.addView(updateBtn, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1));
-        offRow.addView(ipText, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        offRow.addView(settingsText, wrapFull());
+        offRow.addView(footerDot(), wrapFull());
+        offRow.addView(updateText, wrapFull());
+        offRow.addView(footerDot(), wrapFull());
+        offRow.addView(ipText, wrapFull());
         bottom.addView(offRow);
         root.addView(bottom, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, bottomHeight()));
 
@@ -572,6 +570,23 @@ public class MainActivity extends Activity {
         volBar.offsetY = shift; volBar.invalidate();
         volDn.offsetY = shift; volDn.invalidate();
         volUp.offsetY = shift; volUp.invalidate();
+    }
+
+    TextView footerText() {
+        TextView t = text("", 20, C_DIM, true);
+        t.setGravity(Gravity.CENTER_VERTICAL);
+        t.setPadding(dp(10), 0, dp(10), 0); // generous touch area
+        return t;
+    }
+
+    TextView footerDot() {
+        TextView t = text("\u00b7", 20, C_DIM, true);
+        t.setGravity(Gravity.CENTER_VERTICAL);
+        return t;
+    }
+
+    LinearLayout.LayoutParams wrapFull() {
+        return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
     }
 
     Btn[] actionButtons() {
@@ -991,10 +1006,10 @@ public class MainActivity extends Activity {
         else if (!everPolled) { ipText.setText("IP " + ip() + " · connecting…"); ipText.setTextColor(C_DIM); }
         else if (!connected) { ipText.setText("IP " + ip() + " · not connected"); ipText.setTextColor(C_RED); }
         else { ipText.setText("IP " + ip()); ipText.setTextColor(C_DIM); }
-        updateBtn.label = pendingUpdate != null ? "Update " + pendingUpdate.versionName : "v" + versionName();
-        updateBtn.fg = pendingUpdate != null ? C_AMBER : C_TAB_IDLE;
-        updateBtn.textSize = pendingUpdate != null ? 20 : 16;
-        updateBtn.invalidate();
+        if (!updateBusy || pendingUpdate == null) {
+            updateText.setText(pendingUpdate != null ? "Update " + pendingUpdate.versionName : "v" + versionName());
+            updateText.setTextColor(pendingUpdate != null ? C_AMBER : C_DIM);
+        }
     }
 
     // ------------------------------------------------------------------
@@ -1264,8 +1279,7 @@ public class MainActivity extends Activity {
     void downloadAndInstall(final Updater.Info info) {
         if (updateBusy) return;
         updateBusy = true;
-        updateBtn.label = "Downloading\u2026";
-        updateBtn.invalidate();
+        updateText.setText("Downloading\u2026");
         new Thread(new Runnable() {
             public void run() {
                 java.io.File f = null;
@@ -1277,8 +1291,7 @@ public class MainActivity extends Activity {
                 ui.post(new Runnable() {
                     public void run() {
                         updateBusy = false;
-                        updateBtn.label = "Update " + info.versionName;
-                        updateBtn.invalidate();
+                        updateText.setText("Update " + info.versionName);
                         if (fe != null) { toast("Download failed: " + fe); return; }
                         try { Updater.install(MainActivity.this, ff); }
                         catch (Exception e) { toast("Can't open the installer: " + e.getMessage()); }

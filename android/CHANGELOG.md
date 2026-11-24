@@ -1,5 +1,10 @@
 # Android kiosk app — changelog
 
+## 1.30 (versionCode 38)
+- Clock screen footer centred as one line, "Settings · v1.30 · IP 192.168.1.13", all in the same
+  style (20 sp bold, 50 % white). Each part stays tappable; Update stays amber and a lost
+  connection red.
+
 ## 1.29 (versionCode 37)
 - Dimmed text back to 50 % of the active white: inactive tabs, footer (Settings, version, IP),
   Shuffle/Repeat when off, radio station name. Empty volume dots unchanged.
