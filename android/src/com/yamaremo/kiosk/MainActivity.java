@@ -62,6 +62,7 @@ public class MainActivity extends Activity {
     static final String PREF_FAIL_LIMIT = "fail_limit";
     static final String PREF_HIDE_LOCATION = "hide_station_location";
     static final String PREF_FOLLOWER = "follow_speaker";
+    static final String PREF_GESTURES = "swipe_gestures";
 
     /** Follower mode: the speaker's reported state always wins (other apps control it too). */
     boolean follower() { return prefs.getBoolean(PREF_FOLLOWER, true); }
@@ -394,6 +395,41 @@ public class MainActivity extends Activity {
                 if (transportAwake) hideTransportNow(); else wakeTransport();
             }
         });
+        // swipe gestures: drag up/down = volume, swipe left/right = next/previous
+        playBox.setOnTouchListener(new View.OnTouchListener() {
+            float x0, y0, stepY;
+            int mode; // 0 undecided, 1 volume drag, 2 horizontal swipe
+            public boolean onTouch(View v, android.view.MotionEvent e) {
+                if (!prefs.getBoolean(PREF_GESTURES, true)) return false;
+                float slop = dp(16), step = dp(10);
+                switch (e.getActionMasked()) {
+                case android.view.MotionEvent.ACTION_DOWN:
+                    x0 = e.getX(); y0 = e.getY(); stepY = y0; mode = 0;
+                    return true;
+                case android.view.MotionEvent.ACTION_MOVE: {
+                    float dx = e.getX() - x0, dy = e.getY() - y0;
+                    if (mode == 0) {
+                        if (Math.abs(dy) > slop && Math.abs(dy) > Math.abs(dx)) { mode = 1; stepY = e.getY(); }
+                        else if (Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy)) mode = 2;
+                    }
+                    if (mode == 1) {
+                        while (stepY - e.getY() >= step) { changeVolume(+1); stepY -= step; } // finger up
+                        while (e.getY() - stepY >= step) { changeVolume(-1); stepY += step; } // finger down
+                    }
+                    return true;
+                }
+                case android.view.MotionEvent.ACTION_UP: {
+                    float dx = e.getX() - x0;
+                    if (mode == 0) v.performClick();
+                    else if (mode == 2 && Math.abs(dx) > dp(60)) skip(dx < 0 ? +1 : -1); // swipe left = next
+                    return true;
+                }
+                case android.view.MotionEvent.ACTION_CANCEL:
+                    return true;
+                }
+                return false;
+            }
+        });
         centre.addView(playBox, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         clockBox = new LinearLayout(this);
@@ -431,20 +467,14 @@ public class MainActivity extends Activity {
         transportRow = row();
         prevBtn = iconBtn(Btn.ICON_PREV, "Prev", null);
         prevBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                if ("net_radio".equals(input)) stepStation(-1);
-                else send("netusb/setPlayback?playback=previous", true);
-            }
+            public void onClick(View v) { skip(-1); }
         });
         shuffleBtn = iconBtn(Btn.ICON_SHUFFLE, "Shuffle", null);
         playBtn = iconBtn(Btn.ICON_PAUSE, "Pause", null);
         repeatBtn = iconBtn(Btn.ICON_REPEAT, "Repeat", null);
         nextBtn = iconBtn(Btn.ICON_NEXT, "Next", null);
         nextBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                if ("net_radio".equals(input)) stepStation(+1);
-                else send("netusb/setPlayback?playback=next", true);
-            }
+            public void onClick(View v) { skip(+1); }
         });
         shuffleBtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
@@ -587,6 +617,15 @@ public class MainActivity extends Activity {
 
     LinearLayout.LayoutParams wrapFull() {
         return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
+    }
+
+    /** Next (+1) / previous (-1): radio stations on Radio, tracks elsewhere. */
+    void skip(int dir) {
+        if (!connected || !powerOn) return;
+        if (isLineIn(input)) { flash("No tracks on " + sourceLabel(input), C_DIM, 1500); return; }
+        if ("net_radio".equals(input)) { stepStation(dir); return; }
+        flash(dir > 0 ? "Next" : "Previous", C_TEXT, 800);
+        send("netusb/setPlayback?playback=" + (dir > 0 ? "next" : "previous"), true);
     }
 
     Btn[] actionButtons() {
@@ -1062,6 +1101,7 @@ public class MainActivity extends Activity {
         final CheckBox compactVol = new CheckBox(this);
         final CheckBox hideLoc = new CheckBox(this);
         final CheckBox followCb = new CheckBox(this);
+        final CheckBox gestCb = new CheckBox(this);
         final EditText hideSecsEdit = new EditText(this);
         final CheckBox hideOn = new CheckBox(this);
         final EditText failLimitEdit = new EditText(this);
@@ -1113,6 +1153,9 @@ public class MainActivity extends Activity {
                     + "Play and Pause are sent separately");
             followCb.setChecked(follower());
             box.addView(followCb);
+            gestCb.setText("Swipe gestures on the song area: drag up/down = volume, swipe left/right = next/previous");
+            gestCb.setChecked(prefs.getBoolean(PREF_GESTURES, true));
+            box.addView(gestCb);
             TextView hl = new TextView(this);
             hideOn.setText("Hide playback controls when not touched");
             hideOn.setChecked(prefs.getBoolean(PREF_HIDE_ON, true));
@@ -1162,6 +1205,7 @@ public class MainActivity extends Activity {
                             e.putBoolean(PREF_COMPACT_VOLUME, compactVol.isChecked());
                             e.putBoolean(PREF_HIDE_LOCATION, hideLoc.isChecked());
                             e.putBoolean(PREF_FOLLOWER, followCb.isChecked());
+                            e.putBoolean(PREF_GESTURES, gestCb.isChecked());
                             e.putBoolean(PREF_HIDE_ON, hideOn.isChecked());
                             int hs = prefs.getInt(PREF_HIDE_SECS, 10);
                             try { hs = Math.max(0, Math.min(3600, Integer.parseInt(hideSecsEdit.getText().toString().trim()))); }

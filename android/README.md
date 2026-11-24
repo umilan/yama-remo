@@ -17,6 +17,7 @@ and `proxy.py` isn't needed.
   off → all → one.
 - Volume: − and + at the ends of a dotted bar with one dot per volume step. Tap or drag on the dots
   to jump, and hold −/+ to repeat. The tablet's hardware volume keys also control the speaker.
+- Swipe on the song area: drag up/down for volume, swipe left/right for next/previous.
 - Radio: Prev/Next switch to the previous/next station saved as a favourite (preset) in the
   MusicCast app.
 - Inputs without tracks (AUX, Optical, USB) show only Settings and Mute in that row. The row fades out after

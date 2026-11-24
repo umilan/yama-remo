@@ -1,5 +1,12 @@
 # Android kiosk app — changelog
 
+## 1.31 (versionCode 39)
+- Swipe gestures on the song area (playing screen):
+  - Drag up / down: volume up / down, one step per 10 dp ("Volume 34" shows while dragging).
+  - Swipe left: next (next station on Radio); swipe right: previous.
+  - A plain tap still shows/hides the action row.
+- ADVANCED checkbox "Swipe gestures on the song area" (on by default).
+
 ## 1.30 (versionCode 38)
 - Clock screen footer centred as one line, "Settings · v1.30 · IP 192.168.1.13", all in the same
   style (20 sp bold, 50 % white). Each part stays tappable; Update stays amber and a lost
