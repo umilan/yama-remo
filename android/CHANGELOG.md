@@ -1,5 +1,10 @@
 # Android kiosk app — changelog
 
+## 1.45.1 (versionCode 56)
+- Fix: the clock barely grew when scaling text up, because the date grew too and took its space.
+  Above 100 % the date now keeps its size and the clock may use up to 98 % of the width; it is still
+  limited by the screen height.
+
 ## 1.45 (versionCode 55)
 - Settings: sliders next to the number fields, synced both ways: text size (60–200 %), hide playback
   controls after (1–120 s), "not connected" after (1–20 failed checks). The fields stay; larger

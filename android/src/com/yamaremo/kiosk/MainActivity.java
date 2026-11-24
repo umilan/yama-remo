@@ -1034,8 +1034,9 @@ public class MainActivity extends Activity {
         // clock: about three quarters of the width (scaled), limited by the height
         float px = Math.min(h * 0.62f * k, 400 * getResources().getDisplayMetrics().density);
         clockText.setTextSize(TypedValue.COMPLEX_UNIT_PX, px);
-        fit(clockText, px / getResources().getDisplayMetrics().scaledDensity, 60 * Math.min(1f, k), w * Math.min(0.95f, 0.78f * k));
-        fit(dateText, 46 * k, 20 * Math.min(1f, k), w - dp(80));
+        fit(clockText, px / getResources().getDisplayMetrics().scaledDensity, 60 * Math.min(1f, k), w * Math.min(0.98f, 0.78f * k));
+        // the date doesn't grow above 100 %: the space goes to the clock
+        fit(dateText, 46 * Math.min(1f, k), 20 * Math.min(1f, k), w - dp(80));
         // fonts differ a lot in line height (Rounded Mplus is much taller than Roboto):
         // shrink the clock until clock + gap + date really fit the height
         float dateH = lineHeight(dateText, true);
