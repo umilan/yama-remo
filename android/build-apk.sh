@@ -9,11 +9,11 @@ DX=${DX:-/usr/lib/android-sdk/build-tools/debian/dx}
 OUT=build
 rm -rf "$OUT" && mkdir -p "$OUT/gen" "$OUT/obj"
 
-aapt package -f -m -J "$OUT/gen" -M AndroidManifest.xml -S res -I "$SDK"
+aapt package -f -m -J "$OUT/gen" -M AndroidManifest.xml -S res -A assets -I "$SDK"
 javac -nowarn -Xlint:-options -source 8 -target 8 -encoding UTF-8 -bootclasspath "$SDK" \
       -d "$OUT/obj" $(find src "$OUT/gen" -name '*.java')
 "$DX" --dex --min-sdk-version=15 --output="$OUT/classes.dex" "$OUT/obj"
-aapt package -f -M AndroidManifest.xml -S res -I "$SDK" -F "$OUT/unsigned.apk"
+aapt package -f -M AndroidManifest.xml -S res -A assets -I "$SDK" -F "$OUT/unsigned.apk"
 (cd "$OUT" && aapt add unsigned.apk classes.dex >/dev/null)
 zipalign -f 4 "$OUT/unsigned.apk" "$OUT/aligned.apk"
 

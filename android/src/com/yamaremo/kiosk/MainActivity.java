@@ -63,6 +63,7 @@ public class MainActivity extends Activity {
     static final String PREF_HIDE_LOCATION = "hide_station_location";
     static final String PREF_FOLLOWER = "follow_speaker";
     static final String PREF_GESTURES = "swipe_gestures";
+    static final String PREF_FONT = "font";
 
     /** Follower mode: the speaker's reported state always wins (other apps control it too). */
     boolean follower() { return prefs.getBoolean(PREF_FOLLOWER, true); }
@@ -128,6 +129,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        Fonts.apply(this, prefs.getString(PREF_FONT, "default"));
         new Thread(new Runnable() { public void run() { Updater.init(getApplicationContext()); } }).start();
         // Android 4.x reuses dead pooled HTTP connections, which makes random requests fail
         System.setProperty("http.keepAlive", "false");
@@ -663,7 +665,7 @@ public class MainActivity extends Activity {
         t.setTextColor(color);
         t.setSingleLine(true);
         t.setEllipsize(TextUtils.TruncateAt.END);
-        if (bold) t.setTypeface(Typeface.DEFAULT_BOLD);
+        t.setTypeface(bold ? Fonts.bold : Fonts.regular);
         return t;
     }
 
@@ -1076,6 +1078,7 @@ public class MainActivity extends Activity {
     }
 
     void settingsDialog(final boolean admin) {
+        fontPick = null;
         LinearLayout box = new LinearLayout(this);
         // the container takes the initial focus, so no text field grabs it and opens the keyboard
         box.setFocusable(true);
@@ -1112,6 +1115,21 @@ public class MainActivity extends Activity {
             boot.setText("Start after reboot");
             boot.setChecked(prefs.getBoolean(PREF_BOOT, true));
             box.addView(boot);
+
+            // font picker: each option is shown in its own font
+            TextView fl0 = new TextView(this);
+            fl0.setText("Font");
+            fl0.setPadding(0, dp(8), 0, 0);
+            box.addView(fl0);
+            final int[] fontChoice = { Fonts.index(prefs.getString(PREF_FONT, "default")) };
+            final android.widget.Button fontBtn = new android.widget.Button(this);
+            fontBtn.setText(Fonts.LIST[fontChoice[0]][1]);
+            fontBtn.setTypeface(Fonts.load(this, fontChoice[0])[0]);
+            fontBtn.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) { pickFont(fontChoice, fontBtn); }
+            });
+            box.addView(fontBtn);
+            fontPick = fontChoice;
             TextView l2 = new TextView(this);
             l2.setText("Admin PIN for this screen (empty = no PIN)");
             box.addView(l2);
@@ -1196,6 +1214,7 @@ public class MainActivity extends Activity {
                             return;
                         }
                         boolean ipChanged = !newIp.equals(ip());
+                        boolean fontChanged = false;
                         e.putString(PREF_IP, newIp);
                         if (admin) {
                             e.putBoolean(PREF_SCREEN_ON, screenOn.isChecked());
@@ -1206,6 +1225,11 @@ public class MainActivity extends Activity {
                             e.putBoolean(PREF_HIDE_LOCATION, hideLoc.isChecked());
                             e.putBoolean(PREF_FOLLOWER, followCb.isChecked());
                             e.putBoolean(PREF_GESTURES, gestCb.isChecked());
+                            if (fontPick != null) {
+                                String newFont = Fonts.LIST[fontPick[0]][0];
+                                fontChanged = !newFont.equals(prefs.getString(PREF_FONT, "default"));
+                                e.putString(PREF_FONT, newFont);
+                            }
                             e.putBoolean(PREF_HIDE_ON, hideOn.isChecked());
                             int hs = prefs.getInt(PREF_HIDE_SECS, 10);
                             try { hs = Math.max(0, Math.min(3600, Integer.parseInt(hideSecsEdit.getText().toString().trim()))); }
@@ -1217,6 +1241,7 @@ public class MainActivity extends Activity {
                             e.putInt(PREF_FAIL_LIMIT, fl);
                         }
                         e.commit();
+                        if (fontChanged) { recreate(); return; } // rebuild all views in the new font
                         applyScreenOn();
                         applyLayoutPrefs();
                         wakeTransport();
@@ -1268,6 +1293,37 @@ public class MainActivity extends Activity {
             if (!x.matches("\\d{1,3}") || Integer.parseInt(x) > 255) return false;
         }
         return true;
+    }
+
+    int[] fontPick; // choice in the open settings dialog
+
+    /** List of fonts, each name drawn in its own font. */
+    void pickFont(final int[] choice, final android.widget.Button target) {
+        final String[] names = new String[Fonts.LIST.length];
+        final android.graphics.Typeface[] faces = new android.graphics.Typeface[Fonts.LIST.length];
+        for (int i = 0; i < names.length; i++) { names[i] = Fonts.LIST[i][1]; faces[i] = Fonts.load(this, i)[0]; }
+        android.widget.ArrayAdapter<String> ad = new android.widget.ArrayAdapter<String>(this,
+                android.R.layout.simple_list_item_single_choice, names) {
+            @Override public View getView(int pos, View cv, ViewGroup parent) {
+                View v = super.getView(pos, cv, parent);
+                TextView t = (TextView) v.findViewById(android.R.id.text1);
+                t.setTypeface(faces[pos]);
+                t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
+                return v;
+            }
+        };
+        new AlertDialog.Builder(this)
+                .setTitle("Font")
+                .setSingleChoiceItems(ad, choice[0], new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface d, int which) {
+                        choice[0] = which;
+                        target.setText(names[which]);
+                        target.setTypeface(faces[which]);
+                        d.dismiss();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     void info(String title, String msg) {

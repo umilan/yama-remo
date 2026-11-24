@@ -1,5 +1,13 @@
 # Android kiosk app — changelog
 
+## 1.32 (versionCode 40)
+- Font picker in Kiosk settings ("Font", each option shown in its own font). Choices: Default
+  (Roboto), Roboto Flex, Russo One, Saira, Rounded Mplus 1c, Rubik One. Applies to all text after Save.
+- Fonts come from Google Fonts (SIL Open Font License) and are bundled in the app, subset to
+  Latin incl. accented letters (about 620 KB in total); variable fonts are instanced to real
+  Regular and Bold. Licences in `assets/fonts/OFL.txt`. Add a font: put the .ttf files in
+  `android/assets/fonts/` and add a row to `Fonts.java`.
+
 ## 1.31 (versionCode 39)
 - Swipe gestures on the song area (playing screen):
   - Drag up / down: volume up / down, one step per 10 dp ("Volume 34" shows while dragging).

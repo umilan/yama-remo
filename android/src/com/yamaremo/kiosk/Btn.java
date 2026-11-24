@@ -108,7 +108,7 @@ public class Btn extends View {
                 paint.setStyle(Paint.Style.FILL);
                 paint.setColor(fg);
                 paint.setTextSize(sp(15));
-                paint.setTypeface(Typeface.DEFAULT);
+                paint.setTypeface(Fonts.regular);
                 paint.setTextAlign(Paint.Align.CENTER);
                 c.drawText(label, cx, iy + s / 2 + dp(14) + sp(15) * 0.8f, paint);
             }
@@ -117,7 +117,7 @@ public class Btn extends View {
         paint.setStyle(Paint.Style.FILL);
         paint.setColor(fg);
         paint.setTextSize(sp(textSize));
-        paint.setTypeface(bold ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
+        paint.setTypeface(bold ? Fonts.bold : Fonts.regular);
         paint.setTextAlign(Paint.Align.CENTER);
         String t = label;
         float max = w - dp(8);
@@ -222,7 +222,7 @@ public class Btn extends View {
             if (icon == ICON_REPEAT_ONE) {
                 paint.setStyle(Paint.Style.FILL);
                 paint.setTextSize(hs * 0.8f);
-                paint.setTypeface(Typeface.DEFAULT_BOLD);
+                paint.setTypeface(Fonts.bold);
                 paint.setTextAlign(Paint.Align.CENTER);
                 c.drawText("1", cx, cy + hs * 0.28f, paint);
             }
