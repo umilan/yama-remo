@@ -1,5 +1,12 @@
 # Android kiosk app — changelog
 
+## 1.20 (versionCode 25)
+- Update check asks every source and takes the highest version, so one stale cache can't hide
+  an update. New first source: raw.githack.com (GitHub mirror that caches only minutes).
+- "Check for updates now" shows a dialog with the installed version and what each source answered
+  (version or error), plus whether clearing jsDelivr's cache worked.
+- Shorter network timeouts for update sources, so a dead source doesn't stall the check.
+
 ## 1.19.1 (versionCode 24)
 - "Check for updates now" reports what it saw: installed version, the version on the server, which
   source answered, and whether clearing jsDelivr's cache worked.

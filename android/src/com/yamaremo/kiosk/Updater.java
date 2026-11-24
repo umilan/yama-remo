@@ -43,6 +43,9 @@ class Updater {
      * because Android only installs an update signed with the same key.
      */
     static final String[] AUTO_URLS = {
+            // githack: GitHub mirror on Cloudflare, caches only a few minutes
+            "https://raw.githack.com/umilan/yama-remo/main/android/version.json",
+            // jsDelivr: works with Android 4.2 TLS, but may keep branch files up to 12 h
             "https://cdn.jsdelivr.net/gh/umilan/yama-remo@main/android/version.json",
             "https://raw.githubusercontent.com/umilan/yama-remo/main/android/version.json",
             "http://cdn.jsdelivr.net/gh/umilan/yama-remo@main/android/version.json",
@@ -55,6 +58,7 @@ class Updater {
         boolean newer;       // newer than the installed app
         String source = "";  // host that answered
         String purge = "";   // result of clearing jsDelivr's cache
+        String report = "";  // what every source answered
     }
 
     /**
@@ -70,30 +74,35 @@ class Updater {
         boolean auto = customUrl == null || customUrl.length() == 0;
         String[] urls = auto ? AUTO_URLS : new String[] { customUrl };
         String purge = "";
+        StringBuilder report = new StringBuilder();
         if (auto) {
             try { get(PURGE_URL); purge = "cache cleared"; Thread.sleep(1500); }
             catch (Exception e) { purge = "cache clear failed (" + short_(e) + ")"; } // the check still works, maybe with a stale copy
         }
-        StringBuilder errors = new StringBuilder();
+        // ask every source and take the highest version: one stale cache can't hide an update
+        Info best = null;
+        int current = ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0).versionCode;
         for (String jsonUrl : urls) {
+            URL u = new URL(jsonUrl);
+            String name = (u.getProtocol().equals("http") ? "http " : "") + u.getHost();
             try {
-                String body = new String(get(jsonUrl), "UTF-8");
-                JSONObject j = new JSONObject(body);
+                JSONObject j = new JSONObject(new String(get(jsonUrl), "UTF-8"));
                 Info i = new Info();
                 i.versionCode = j.getInt("versionCode");
                 i.versionName = j.optString("versionName", String.valueOf(i.versionCode));
-                i.apkUrl = new URL(new URL(jsonUrl), j.optString("apk", "yamaremo-kiosk.apk")).toString();
-                int current = ctx.getPackageManager().getPackageInfo(ctx.getPackageName(), 0).versionCode;
-                i.newer = i.versionCode > current;
-                i.source = new URL(jsonUrl).getProtocol() + "://" + new URL(jsonUrl).getHost();
-                i.purge = purge;
-                return i;
+                i.apkUrl = new URL(u, j.optString("apk", "yamaremo-kiosk.apk")).toString();
+                i.source = name;
+                report.append("\n").append(name).append(": ").append(i.versionName);
+                if (best == null || i.versionCode > best.versionCode) best = i;
             } catch (Exception e) {
-                if (errors.length() > 0) errors.append("\n");
-                errors.append(new URL(jsonUrl).getHost()).append(": ").append(short_(e));
+                report.append("\n").append(name).append(": ").append(short_(e));
             }
         }
-        throw new IOException(errors.toString());
+        if (best == null) throw new IOException(report.toString().trim());
+        best.newer = best.versionCode > current;
+        best.purge = purge;
+        best.report = (purge.length() > 0 ? "jsDelivr " + purge : "") + report;
+        return best;
     }
 
     static String short_(Exception e) {
@@ -137,10 +146,10 @@ class Updater {
             String host = u.getHost();
             int port = u.getPort() > 0 ? u.getPort() : (https ? 443 : 80);
             Socket s = new Socket();
-            s.connect(new InetSocketAddress(host, port), 15000);
-            s.setSoTimeout(30000);
+            s.connect(new InetSocketAddress(host, port), 8000);
+            s.setSoTimeout(15000);
             if (https) {
-                SSLCertificateSocketFactory f = (SSLCertificateSocketFactory) SSLCertificateSocketFactory.getDefault(15000, null);
+                SSLCertificateSocketFactory f = (SSLCertificateSocketFactory) SSLCertificateSocketFactory.getDefault(10000, null);
                 SSLSocket ss = (SSLSocket) f.createSocket(s, host, port, true);
                 java.util.List<String> want = new java.util.ArrayList<String>();
                 for (String p : ss.getSupportedProtocols())

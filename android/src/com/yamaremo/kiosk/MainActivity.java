@@ -1061,6 +1061,10 @@ public class MainActivity extends Activity {
         catch (Exception e) { return "?"; }
     }
 
+    void info(String title, String msg) {
+        new AlertDialog.Builder(this).setTitle(title).setMessage(msg).setPositiveButton("OK", null).show();
+    }
+
     void toast(String s) { android.widget.Toast.makeText(this, s, android.widget.Toast.LENGTH_LONG).show(); }
 
     void checkForUpdates(final boolean manual) {
@@ -1083,10 +1087,9 @@ public class MainActivity extends Activity {
                         pendingUpdate = fi != null && fi.newer ? fi : null;
                         render();
                         if (!manual) return;
-                        if (fe != null) toast("Update check failed: " + fe);
-                        else if (fi != null) toast((fi.newer ? "Version " + fi.versionName + " is available \u2013 tap Update at the bottom of the clock screen"
-                                : "Up to date") + "\nInstalled " + versionName() + ", server has " + fi.versionName
-                                + " (" + fi.source + (fi.purge.length() > 0 ? ", " + fi.purge : "") + ")");
+                        if (fe != null) info("Update check failed", fe);
+                        else if (fi != null) info(fi.newer ? "Update available" : "Up to date", (fi.newer ? "Version " + fi.versionName + " is available \u2013 tap Update at the bottom of the clock screen"
+                                : "No newer version") + " (installed " + versionName() + ")\n\nSources:" + fi.report);
                     }
                 });
             }
