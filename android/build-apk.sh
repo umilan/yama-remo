@@ -29,5 +29,7 @@ apksigner verify --min-sdk-version 15 yamaremo-kiosk.apk
 VC=$(sed -n 's/.*android:versionCode="\([0-9]*\)".*/\1/p' AndroidManifest.xml)
 VN=$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' AndroidManifest.xml)
 printf '{"versionCode": %s, "versionName": "%s", "apk": "yamaremo-kiosk.apk"}\n' "$VC" "$VN" > version.json
+mkdir -p releases
+cp yamaremo-kiosk.apk "releases/yamaremo-kiosk-$VN.apk"
 cat version.json
 ls -l yamaremo-kiosk.apk

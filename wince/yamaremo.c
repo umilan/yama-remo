@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define APP_VERSION "1.0"
 #define APP_TITLE   L"MusicCast Remote"
 #define APP_CLASS   L"YamaRemoWnd"
 #define INI_NAME    L"yamaremo.ini"
