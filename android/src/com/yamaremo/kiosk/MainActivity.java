@@ -57,6 +57,7 @@ public class MainActivity extends Activity {
     static final String PREF_UPDATE_URL = "update_url";
     static final String PREF_COMPACT_VOLUME = "compact_volume";
     static final String PREF_HIDE_SECS = "hide_controls_secs";
+    static final String PREF_FAIL_LIMIT = "fail_limit";
     static final long UPDATE_EVERY_MS = 6L * 3600 * 1000;
 
     static final int C_BG = 0xFF000000;
@@ -70,6 +71,12 @@ public class MainActivity extends Activity {
     static final String[] SRC_LABEL = { "AirPlay", "AUX", "Optical", "Bluetooth", "Radio" };
 
     static final int POLL_MS = 3000;
+
+    // connection health (worker thread writes, UI reads)
+    final AtomicInteger reqTotal = new AtomicInteger(), reqFailed = new AtomicInteger();
+    int failStreak, worstStreak;
+    long lastFailAt, startedAt = System.currentTimeMillis();
+    android.net.wifi.WifiManager.WifiLock wifiLock;
 
     // speaker state (UI thread only)
     boolean everPolled, connected, powerOn, mute, playing, shuffle;
@@ -111,6 +118,13 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        // Android 4.x reuses dead pooled HTTP connections, which makes random requests fail
+        System.setProperty("http.keepAlive", "false");
+        try {
+            android.net.wifi.WifiManager wm = (android.net.wifi.WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+            wifiLock = wm.createWifiLock(android.net.wifi.WifiManager.WIFI_MODE_FULL_HIGH_PERF, "yamaremo");
+            wifiLock.setReferenceCounted(false);
+        } catch (Exception ignored) { }
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN
                 | WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
                 | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
@@ -126,6 +140,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         resumed = true;
+        try { if (wifiLock != null) wifiLock.acquire(); } catch (Exception ignored) { }
         hideSystemBars();
         ui.removeCallbacks(pollLoop);
         ui.post(pollLoop);
@@ -137,6 +152,7 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         resumed = false;
+        try { if (wifiLock != null) wifiLock.release(); } catch (Exception ignored) { }
         ui.removeCallbacks(pollLoop);
         ui.removeCallbacks(clockTick);
     }
@@ -706,6 +722,7 @@ public class MainActivity extends Activity {
         final EditText updateUrlEdit = new EditText(this);
         final CheckBox compactVol = new CheckBox(this);
         final EditText hideSecsEdit = new EditText(this);
+        final EditText failLimitEdit = new EditText(this);
         if (admin) {
             screenOn.setText("Keep screen on");
             screenOn.setChecked(prefs.getBoolean(PREF_SCREEN_ON, true));
@@ -754,6 +771,17 @@ public class MainActivity extends Activity {
             hideSecsEdit.setSingleLine(true);
             hideSecsEdit.setText(String.valueOf(hideSecs()));
             box.addView(hideSecsEdit);
+            TextView fl = new TextView(this);
+            fl.setText("Show \"not connected\" after this many failed checks in a row (one check every 3 s)");
+            box.addView(fl);
+            failLimitEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
+            failLimitEdit.setSingleLine(true);
+            failLimitEdit.setText(String.valueOf(failLimit()));
+            box.addView(failLimitEdit);
+            TextView health = new TextView(this);
+            health.setText(healthText());
+            health.setPadding(0, dp(8), 0, dp(8));
+            box.addView(health);
         }
 
         AlertDialog.Builder bld = new AlertDialog.Builder(this)
@@ -775,12 +803,16 @@ public class MainActivity extends Activity {
                             try { hs = Math.max(0, Math.min(3600, Integer.parseInt(hideSecsEdit.getText().toString().trim()))); }
                             catch (NumberFormatException ignored) { }
                             e.putInt(PREF_HIDE_SECS, hs);
+                            int fl = failLimit();
+                            try { fl = Math.max(1, Math.min(100, Integer.parseInt(failLimitEdit.getText().toString().trim()))); }
+                            catch (NumberFormatException ignored) { }
+                            e.putInt(PREF_FAIL_LIMIT, fl);
                         }
                         e.commit();
                         applyScreenOn();
                         applyLayoutPrefs();
                         wakeTransport();
-                        if (ipChanged) { everPolled = false; connected = false; track = ""; artist = ""; input = ""; }
+                        if (ipChanged) { everPolled = false; connected = false; failStreak = 0; track = ""; artist = ""; input = ""; }
                         render();
                         poll();
                         hideSystemBars();
@@ -932,7 +964,8 @@ public class MainActivity extends Activity {
                 final boolean ok = request(path) != null;
                 ui.post(new Runnable() {
                     public void run() {
-                        connected = ok;
+                        if (ok) { connected = true; failStreak = 0; }
+                        else noteFailure();
                         everPolled = true;
                         render();
                         if (thenPoll) ui.postDelayed(new Runnable() { public void run() { poll(); } }, 250);
@@ -948,10 +981,10 @@ public class MainActivity extends Activity {
         if (!polling.compareAndSet(false, true)) return;
         net.execute(new Runnable() {
             public void run() {
-                final String st = request("main/getStatus");
+                final String st = requestRetry("main/getStatus");
                 String pi = null;
                 try {
-                    if (st != null && "on".equals(new JSONObject(st).optString("power"))) pi = request("netusb/getPlayInfo");
+                    if (st != null && "on".equals(new JSONObject(st).optString("power"))) pi = requestRetry("netusb/getPlayInfo");
                 } catch (Exception ignored) { }
                 final String playInfo = pi;
                 polling.set(false);
@@ -964,7 +997,14 @@ public class MainActivity extends Activity {
 
     void applyPoll(String st, String pi) {
         everPolled = true;
-        connected = st != null;
+        if (st == null) {
+            // one lost check isn't a disconnect: keep the screen until several fail in a row
+            noteFailure();
+            render();
+            return;
+        }
+        connected = true;
+        failStreak = 0;
         if (st != null) {
             try {
                 JSONObject j = new JSONObject(st);
@@ -1007,15 +1047,51 @@ public class MainActivity extends Activity {
     }
 
     /** Blocking GET on the worker thread. Returns the body, or null on failure. */
+    int failLimit() { return Math.max(1, prefs.getInt(PREF_FAIL_LIMIT, 3)); }
+
+    void noteFailure() {
+        failStreak++;
+        worstStreak = Math.max(worstStreak, failStreak);
+        lastFailAt = System.currentTimeMillis();
+        if (failStreak >= failLimit()) connected = false;
+    }
+
+    String healthText() {
+        int t = reqTotal.get(), f = reqFailed.get();
+        long mins = (System.currentTimeMillis() - startedAt) / 60000;
+        String last = lastFailAt == 0 ? "never" :
+                android.text.format.DateFormat.getTimeFormat(this).format(new Date(lastFailAt));
+        return "Connection: " + f + " of " + t + " requests failed in the last " + mins + " min ("
+                + (t > 0 ? Math.round(100f * f / t) : 0) + "%), longest run " + worstStreak
+                + " failed checks in a row, last failure " + last + ".";
+    }
+
+    /** Read-only requests are safe to repeat: retry once after a short pause. */
+    String requestRetry(String path) {
+        String r = request(path);
+        if (r == null) {
+            try { Thread.sleep(400); } catch (InterruptedException e) { return null; }
+            r = request(path);
+        }
+        return r;
+    }
+
     String request(String path) {
+        String r = requestOnce(path);
+        reqTotal.incrementAndGet();
+        if (r == null) reqFailed.incrementAndGet();
+        return r;
+    }
+
+    String requestOnce(String path) {
         String ipNow = ip();
         if (TextUtils.isEmpty(ipNow)) return null;
         HttpURLConnection c = null;
         try {
             URL u = new URL("http://" + ipNow + "/YamahaExtendedControl/v1/" + path);
             c = (HttpURLConnection) u.openConnection();
-            c.setConnectTimeout(2500);
-            c.setReadTimeout(3500);
+            c.setConnectTimeout(4000);
+            c.setReadTimeout(6000);
             c.setUseCaches(false);
             c.setRequestProperty("Connection", "close");
             if (c.getResponseCode() != 200) return null;

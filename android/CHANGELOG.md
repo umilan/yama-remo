@@ -1,5 +1,16 @@
 # Android kiosk app — changelog
 
+## 1.9 (versionCode 12)
+- Far fewer false "not connected" screens:
+  - The screen switches to "not connected" only after 3 failed checks in a row (about 10 s);
+    configurable in ADVANCED. A failed command no longer flips the screen on its own.
+  - Failed status checks are retried once right away (read-only requests only).
+  - Timeouts raised to 4 s connect / 6 s read.
+  - HTTP keep-alive off (Android 4.x reuses dead pooled connections).
+  - Wi-Fi held in high-performance mode while the app is in front (no Wi-Fi power saving).
+- ADVANCED shows connection health: failed requests, the longest run of failed checks, last failure.
+- Note: the app never sends standby on its own; only the OFF tab does.
+
 ## 1.8 (versionCode 11)
 - Contextual messages instead of "Not playing":
   - "Turning on…" for up to 8 s after switching the speaker on.
