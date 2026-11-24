@@ -59,6 +59,7 @@ class Updater {
         String source = "";  // host that answered
         String purge = "";   // result of clearing jsDelivr's cache
         String report = "";  // what every source answered
+        String apkPath = "";  // "apk" from version.json, relative to android/
     }
 
     /**
@@ -90,7 +91,8 @@ class Updater {
                 Info i = new Info();
                 i.versionCode = j.getInt("versionCode");
                 i.versionName = j.optString("versionName", String.valueOf(i.versionCode));
-                i.apkUrl = new URL(u, j.optString("apk", "yamaremo-kiosk.apk")).toString();
+                i.apkPath = j.optString("apk", "yamaremo-kiosk.apk");
+                i.apkUrl = new URL(u, i.apkPath).toString();
                 i.source = name;
                 report.append("\n").append(name).append(": ").append(i.versionName);
                 if (best == null || i.versionCode > best.versionCode) best = i;
@@ -112,13 +114,45 @@ class Updater {
     }
 
     /** Downloads the APK to shared storage (the installer must be able to read it). */
+    /** Hosts in the order they are tried for the APK download (most reliable on Android 4.2 first). */
+    static final String[] DOWNLOAD_BASES = {
+            "https://cdn.jsdelivr.net/gh/umilan/yama-remo@main/android/",
+            "http://cdn.jsdelivr.net/gh/umilan/yama-remo@main/android/",
+            "https://raw.githack.com/umilan/yama-remo/main/android/",
+            "https://raw.githubusercontent.com/umilan/yama-remo/main/android/",
+    };
+
+    /**
+     * Tries the APK from every source until one works: one host may accept the tablet's TLS for
+     * the small version.json but not for the APK. Android verifies the APK signature before it
+     * installs, so plain HTTP is safe here.
+     */
     static File download(Context ctx, Info info) throws Exception {
         File dir = ctx.getExternalFilesDir(null);
         if (dir == null) dir = new File(Environment.getExternalStorageDirectory(), "Download");
         dir.mkdirs();
         File f = new File(dir, "yamaremo-update.apk");
-        byte[] data = get(info.apkUrl);
-        if (data.length < 1000 || data[0] != 'P' || data[1] != 'K') throw new IOException("Downloaded file is not an APK");
+        java.util.List<String> urls = new java.util.ArrayList<String>();
+        if (info.apkPath.length() > 0 && !info.apkPath.startsWith("http")) {
+            // a new file path may not be in jsDelivr's cache yet: ask it to fetch it fresh
+            try { get("https://purge.jsdelivr.net/gh/umilan/yama-remo@main/android/" + info.apkPath); } catch (Exception ignored) { }
+            for (String b : DOWNLOAD_BASES) urls.add(b + info.apkPath);
+        }
+        if (!urls.contains(info.apkUrl)) urls.add(info.apkUrl);
+        byte[] data = null;
+        StringBuilder errors = new StringBuilder();
+        for (String url : urls) {
+            try {
+                byte[] d = get(url);
+                if (d.length < 1000 || d[0] != 'P' || d[1] != 'K') throw new IOException("not an APK (" + d.length + " bytes)");
+                data = d;
+                break;
+            } catch (Exception e) {
+                URL u = new URL(url);
+                errors.append("\n").append(u.getProtocol().equals("http") ? "http " : "").append(u.getHost()).append(": ").append(short_(e));
+            }
+        }
+        if (data == null) throw new IOException("no source worked:" + errors);
         FileOutputStream out = new FileOutputStream(f);
         out.write(data);
         out.close();

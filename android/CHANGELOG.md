@@ -1,5 +1,10 @@
 # Android kiosk app — changelog
 
+## 1.26.1 (versionCode 34)
+- Fix: "Download failed: SSL handshake failure" when updating. The APK download now tries every
+  source in turn (jsDelivr HTTPS, jsDelivr HTTP, githack, GitHub) and asks jsDelivr to fetch the
+  new APK fresh first. Android checks the APK signature before installing, so HTTP is safe.
+
 ## 1.26 (versionCode 33)
 - Crossfade when switching between the playing screen and the clock (speaker on/off): the content
   below the tabs fades out in 0.18 s and the other screen fades in over 0.28 s. The tabs stay put.
