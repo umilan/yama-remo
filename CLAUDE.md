@@ -13,9 +13,11 @@ Every feature or fix to the Android app ships as a new version:
    - `android:versionCode` + 1, always. Self-update only offers builds with a higher versionCode.
    - `android:versionName`: new feature → minor (1.3 → 1.4); fix only → patch (1.4 → 1.4.1).
 2. Add an entry at the top of `android/CHANGELOG.md`.
-3. Run `android/build-apk.sh`. It writes `android/yamaremo-kiosk.apk` (latest),
-   `android/releases/yamaremo-kiosk-<versionName>.apk` (kept), and `android/version.json`.
-4. Commit all of them and push.
+3. Run `android/release.sh "<commit message>"`. It builds (`android/build-apk.sh`), commits the APK
+   (`android/yamaremo-kiosk.apk` and `android/releases/yamaremo-kiosk-<versionName>.apk`) and sources,
+   then commits `android/version.json` pointing at the APK by that commit's id on jsDelivr
+   (`cdn.jsdelivr.net/gh/umilan/yama-remo@<sha>/…`), and pushes both. jsDelivr caches `@main` for
+   hours, but a commit-id URL is always fresh; the tablet reads version.json mainly from githack.
 
 ## Reporting
 

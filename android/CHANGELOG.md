@@ -1,5 +1,11 @@
 # Android kiosk app — changelog
 
+## 1.28 (versionCode 36)
+- "Check for updates now" shows "Checking for updates…" in the button itself (disabled while it
+  runs) instead of a small toast.
+- Releases are published in two commits so `version.json` points at the APK by commit id on jsDelivr;
+  that link is never stale (jsDelivr kept serving 1.23 for `@main` even after clearing its cache).
+
 ## 1.27 (versionCode 35)
 - Clock screen: a single tap on the time/date fades the tabs and the footer out or back in
   (0.25 s); the clock stays in place. Double-tap still opens settings. Turning the speaker on

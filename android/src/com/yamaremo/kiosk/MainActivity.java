@@ -1076,7 +1076,7 @@ public class MainActivity extends Activity {
             chk.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
                     prefs.edit().putString(PREF_UPDATE_URL, updateUrlEdit.getText().toString().trim()).commit();
-                    checkForUpdates(true);
+                    checkForUpdates(true, (android.widget.Button) v);
                 }
             });
             box.addView(chk);
@@ -1216,12 +1216,17 @@ public class MainActivity extends Activity {
 
     void toast(String s) { android.widget.Toast.makeText(this, s, android.widget.Toast.LENGTH_LONG).show(); }
 
-    void checkForUpdates(final boolean manual) {
+    void checkForUpdates(boolean manual) { checkForUpdates(manual, null); }
+
+    /** btn (optional): the button that started the check; it shows the progress instead of a toast. */
+    void checkForUpdates(final boolean manual, final android.widget.Button btn) {
         if (updateBusy) return;
         updateBusy = true;
         lastUpdateCheck = System.currentTimeMillis();
         final String url = updateUrl();
-        if (manual) toast("Checking for updates\u2026");
+        final CharSequence btnText = btn != null ? btn.getText() : null;
+        if (btn != null) { btn.setText("Checking for updates\u2026"); btn.setEnabled(false); }
+        else if (manual) toast("Checking for updates\u2026");
         new Thread(new Runnable() {
             public void run() {
                 Updater.Info info = null;
@@ -1233,6 +1238,7 @@ public class MainActivity extends Activity {
                 ui.post(new Runnable() {
                     public void run() {
                         updateBusy = false;
+                        if (btn != null) { btn.setText(btnText); btn.setEnabled(true); }
                         pendingUpdate = fi != null && fi.newer ? fi : null;
                         render();
                         if (!manual) return;
