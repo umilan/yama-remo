@@ -436,15 +436,20 @@ public class MainActivity extends Activity {
                         else if (Math.abs(dx) > slop && Math.abs(dx) > Math.abs(dy)) mode = 2;
                     }
                     if (mode == 1) {
-                        while (stepY - e.getY() >= step) { changeVolume(+1); stepY -= step; } // finger up
-                        while (e.getY() - stepY >= step) { changeVolume(-1); stepY += step; } // finger down
+                        while (stepY - e.getY() >= step) { flashHint = "(swiping up)"; changeVolume(+1); stepY -= step; } // finger up
+                        while (e.getY() - stepY >= step) { flashHint = "(swiping down)"; changeVolume(-1); stepY += step; } // finger down
+                        flashHint = null;
                     }
                     return true;
                 }
                 case android.view.MotionEvent.ACTION_UP: {
                     float dx = e.getX() - x0;
                     if (mode == 0) v.performClick();
-                    else if (mode == 2 && Math.abs(dx) > dp(60)) skip(dx < 0 ? +1 : -1); // swipe left = next
+                    else if (mode == 2 && Math.abs(dx) > dp(60)) {                          // swipe left = next
+                        flashHint = dx < 0 ? "(swiping left)" : "(swiping right)";
+                        skip(dx < 0 ? +1 : -1);
+                        flashHint = null;
+                    }
                     return true;
                 }
                 case android.view.MotionEvent.ACTION_CANCEL:
@@ -646,7 +651,11 @@ public class MainActivity extends Activity {
     void skip(int dir) {
         if (!connected || !powerOn) return;
         if (isLineIn(input)) { flash("No tracks on " + sourceLabel(input), C_DIM, 1500); return; }
-        if ("net_radio".equals(input)) { stepStation(dir); return; }
+        if ("net_radio".equals(input)) {
+            if (flashHint != null) flash(dir > 0 ? "Next station" : "Previous station", C_TEXT, 900);
+            stepStation(dir);
+            return;
+        }
         flash(dir > 0 ? "Next" : "Previous", C_TEXT, 800);
         send("netusb/setPlayback?playback=" + (dir > 0 ? "next" : "previous"), true);
     }
@@ -722,7 +731,11 @@ public class MainActivity extends Activity {
     long flashUntil;
     final Runnable flashEnd = new Runnable() { public void run() { render(); } };
 
+    String flashHint;   // set while a gesture triggers a message: explains it in the artist row
+    String flashSub;    // the hint of the message currently shown
+
     void flash(String text, int color, long ms) {
+        flashSub = flashHint;
         flashText = text;
         flashColor = color;
         flashUntil = System.currentTimeMillis() + ms;
@@ -1064,6 +1077,7 @@ public class MainActivity extends Activity {
             if (System.currentTimeMillis() < flashUntil) {
                 trackText.setText(flashText);
                 trackText.setTextColor(flashColor);
+                if (flashSub != null) { artistText.setText(flashSub); artistText.setTextColor(C_DIM); }
             } else if (mute) {
                 trackText.setText("Muted");
                 trackText.setTextColor(C_AMBER);

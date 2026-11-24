@@ -1,5 +1,9 @@
 # Android kiosk app — changelog
 
+## 1.35 (versionCode 44)
+- Messages triggered by a swipe explain themselves in the artist row: "Volume 34 / (swiping up)",
+  "Next / (swiping left)", "Next station / (swiping left)" on Radio. The artist returns with the song.
+
 ## 1.34 (versionCode 43)
 - Eight more fonts in the picker: Scada, Schibsted Grotesk, Schoolbell, Secular One, Sekuya,
   Shadows Into Light Two, Shantell Sans, Share Tech. ("Shantel Sans" is spelled Shantell Sans.)
