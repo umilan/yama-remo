@@ -1,5 +1,13 @@
 # Android kiosk app — changelog
 
+## 1.25 (versionCode 32)
+- Follower mode (ADVANCED, on by default) for when a phone controls the speaker too:
+  - The speaker's reported power, source and volume always win; the 8 s grace after power/source
+    changes is off, and the hold after a volume change is 0.6 s instead of 2.5 s.
+  - Play and Pause are sent as separate commands based on what the speaker reports, instead of a
+    toggle that could undo a change just made on the phone.
+- Note: the app never sends commands on its own; besides taps it only reads status every 3 s.
+
 ## 1.24 (versionCode 31)
 - "Check for updates now": when a newer version exists, the dialog has an "Update now" button that
   downloads it and opens the installer right away ("Later" closes it).

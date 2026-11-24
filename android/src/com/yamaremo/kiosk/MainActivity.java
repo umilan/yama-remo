@@ -61,6 +61,10 @@ public class MainActivity extends Activity {
     static final String PREF_HIDE_ON = "hide_controls";
     static final String PREF_FAIL_LIMIT = "fail_limit";
     static final String PREF_HIDE_LOCATION = "hide_station_location";
+    static final String PREF_FOLLOWER = "follow_speaker";
+
+    /** Follower mode: the speaker's reported state always wins (other apps control it too). */
+    boolean follower() { return prefs.getBoolean(PREF_FOLLOWER, true); }
     static final long UPDATE_EVERY_MS = 3600L * 1000; // hourly
 
     static final int C_BG = 0xFF000000;
@@ -454,7 +458,12 @@ public class MainActivity extends Activity {
             }
         });
         playBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) { playing = !playing; render(); send("netusb/setPlayback?playback=play_pause", true); }
+            public void onClick(View v) {
+                // follower: explicit play/pause for what the speaker reported, not a blind toggle
+                String cmd = follower() ? (playing ? "pause" : "play") : "play_pause";
+                playing = !playing; render();
+                send("netusb/setPlayback?playback=" + cmd, true);
+            }
         });
         settingsBtn = iconBtn(Btn.ICON_SETTINGS, "Settings", null);
         settingsBtn.setOnClickListener(new View.OnClickListener() {
@@ -978,6 +987,7 @@ public class MainActivity extends Activity {
         final EditText updateUrlEdit = new EditText(this);
         final CheckBox compactVol = new CheckBox(this);
         final CheckBox hideLoc = new CheckBox(this);
+        final CheckBox followCb = new CheckBox(this);
         final EditText hideSecsEdit = new EditText(this);
         final CheckBox hideOn = new CheckBox(this);
         final EditText failLimitEdit = new EditText(this);
@@ -1025,6 +1035,10 @@ public class MainActivity extends Activity {
             hideLoc.setText("Hide location in radio station names, e.g. \"(Bratislava/Slovak)\"");
             hideLoc.setChecked(prefs.getBoolean(PREF_HIDE_LOCATION, true));
             box.addView(hideLoc);
+            followCb.setText("Follow the speaker (also controlled from a phone): its state always wins, "
+                    + "Play and Pause are sent separately");
+            followCb.setChecked(follower());
+            box.addView(followCb);
             TextView hl = new TextView(this);
             hideOn.setText("Hide playback controls when not touched");
             hideOn.setChecked(prefs.getBoolean(PREF_HIDE_ON, true));
@@ -1073,6 +1087,7 @@ public class MainActivity extends Activity {
                             e.putString(PREF_UPDATE_URL, updateUrlEdit.getText().toString().trim());
                             e.putBoolean(PREF_COMPACT_VOLUME, compactVol.isChecked());
                             e.putBoolean(PREF_HIDE_LOCATION, hideLoc.isChecked());
+                            e.putBoolean(PREF_FOLLOWER, followCb.isChecked());
                             e.putBoolean(PREF_HIDE_ON, hideOn.isChecked());
                             int hs = prefs.getInt(PREF_HIDE_SECS, 10);
                             try { hs = Math.max(0, Math.min(3600, Integer.parseInt(hideSecsEdit.getText().toString().trim()))); }
@@ -1247,7 +1262,8 @@ public class MainActivity extends Activity {
         int maxv = maxVolume > 0 ? maxVolume : 100;
         int v = Math.max(0, Math.min(maxv, volume + delta));
         volume = v;
-        volumeHoldUntil = System.currentTimeMillis() + 2500;
+        // follower: only a short hold so the bar doesn't jump while −/+ is held
+        volumeHoldUntil = System.currentTimeMillis() + (follower() ? 600 : 2500);
         flash("Volume " + v + (v == maxv ? " \u00b7 max" : "") + (mute ? " \u00b7 muted" : ""), mute ? C_AMBER : C_TEXT, 1500);
         // coalesce: only the latest value is sent
         if (pendingVolume.getAndSet(v) < 0) {
@@ -1315,13 +1331,13 @@ public class MainActivity extends Activity {
                 if (j.optInt("response_code", 0) == 0) {
                     boolean polledOn = "on".equals(j.optString("power"));
                     // right after a power change the speaker may still report the old state
-                    if (System.currentTimeMillis() - powerChangedAt > SETTLE_MS || polledOn == powerTarget) powerOn = polledOn;
+                    if (follower() || System.currentTimeMillis() - powerChangedAt > SETTLE_MS || polledOn == powerTarget) powerOn = polledOn;
                     maxVolume = j.optInt("max_volume", maxVolume);
                     if (System.currentTimeMillis() > volumeHoldUntil && pendingVolume.get() < 0)
                         volume = j.optInt("volume", volume);
                     mute = j.optBoolean("mute", mute);
                     String polledInput = j.optString("input", input);
-                    if (System.currentTimeMillis() - inputChangedAt > SETTLE_MS || polledInput.equals(input)) input = polledInput;
+                    if (follower() || System.currentTimeMillis() - inputChangedAt > SETTLE_MS || polledInput.equals(input)) input = polledInput;
                 }
             } catch (Exception ignored) { }
         }
