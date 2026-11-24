@@ -1,5 +1,11 @@
 # Android kiosk app — changelog
 
+## 1.41 (versionCode 50)
+- Slider animation for horizontal swipes: the now-playing text follows the finger; past 60 dp it
+  slides out in that direction and the new one slides in from the other side (showing "Next" /
+  "Tuning in…" until the speaker reports the new song). Short swipes spring back; inputs without
+  tracks move only a little, with resistance.
+
 ## 1.40 (versionCode 49)
 - Swipes work on the whole playing screen, not only the song area: drag up/down = volume, swipe
   right/left = next/previous. Once a finger has moved ~16 dp the swipe takes over and the button

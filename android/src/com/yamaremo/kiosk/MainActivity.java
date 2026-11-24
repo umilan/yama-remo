@@ -287,6 +287,14 @@ public class MainActivity extends Activity {
                 super.dispatchTouchEvent(c); // buttons under the finger are released, not pressed
                 c.recycle();
             }
+            if (gMode == 2) {
+                // slider: the now-playing text follows the finger (with resistance if there are no tracks)
+                float w = Math.max(1, playBox.getWidth());
+                float x = isLineIn(input) ? dx * 0.3f : dx;
+                playBox.animate().cancel();
+                playBox.setTranslationX(x);
+                playBox.setAlpha(1f - Math.min(0.6f, Math.abs(x) / w));
+            }
             if (gMode == 1) {
                 // volume goes down faster than up: finger distance per volume step
                 float stepUp = dp(16), stepDown = dp(5);
@@ -299,14 +307,36 @@ public class MainActivity extends Activity {
         if (a == android.view.MotionEvent.ACTION_UP || a == android.view.MotionEvent.ACTION_CANCEL) {
             int m = gMode;
             gMode = -1;
-            if (m == 2 && a == android.view.MotionEvent.ACTION_UP && Math.abs(dx) > dp(60)) {
-                flashHint = dx > 0 ? "(swiping right)" : "(swiping left)";
-                skip(dx > 0 ? +1 : -1); // swipe right = next
-                flashHint = null;
+            if (m == 2) {
+                boolean commit = a == android.view.MotionEvent.ACTION_UP && Math.abs(dx) > dp(60);
+                if (commit && !isLineIn(input)) slideTo(dx > 0 ? +1 : -1); // swipe right = next
+                else {
+                    playBox.animate().translationX(0).alpha(1f).setDuration(200).setListener(null);
+                    if (commit) { flashHint = dx > 0 ? "(swiping right)" : "(swiping left)"; skip(dx > 0 ? +1 : -1); flashHint = null; }
+                }
             }
             return m > 0;
         }
         return gMode > 0;
+    }
+
+    /** Slides the current text out in the swipe direction, skips, and slides the new one in. */
+    void slideTo(final int dir) {
+        final float w = Math.max(1, playBox.getWidth());
+        playBox.animate().translationX(dir * w).alpha(0f).setDuration(180)
+                .setListener(new android.animation.AnimatorListenerAdapter() {
+                    boolean cancelled;
+                    @Override public void onAnimationCancel(android.animation.Animator an) { cancelled = true; }
+                    @Override public void onAnimationEnd(android.animation.Animator an) {
+                        if (cancelled) return;
+                        flashHint = dir > 0 ? "(swiping right)" : "(swiping left)";
+                        skip(dir);
+                        flashHint = null;
+                        // the new one comes in from the other side
+                        playBox.setTranslationX(-dir * w);
+                        playBox.animate().translationX(0).alpha(1f).setDuration(260).setListener(null);
+                    }
+                });
     }
 
     static boolean inView(View v, android.view.MotionEvent e) {
