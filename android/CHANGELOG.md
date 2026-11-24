@@ -1,5 +1,13 @@
 # Android kiosk app — changelog
 
+## 1.34 (versionCode 43)
+- Eight more fonts in the picker: Scada, Schibsted Grotesk, Schoolbell, Secular One, Sekuya,
+  Shadows Into Light Two, Shantell Sans, Share Tech. ("Shantel Sans" is spelled Shantell Sans.)
+- Schoolbell and Share Tech lack some Slovak letters (č ď ľ ň ŕ ť…), Shadows Into Light Two lacks ď;
+  Android draws those letters in its own font.
+- `android/tools/make_fonts.py` now builds all fonts from a list; Schoolbell is Apache-2.0 licensed
+  (`assets/fonts/APACHE-2.0.txt`), the others OFL.
+
 ## 1.33.1 (versionCode 42)
 - Fix: with tall fonts (e.g. Rounded Mplus 1c) the date under the clock was cut off. The clock size
   is now computed from the chosen font's real line heights so clock, gap and date always fit;

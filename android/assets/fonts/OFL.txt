@@ -5,8 +5,18 @@ Russo One: Copyright (c) 2011-2012, Jovanny Lemonad (jovanny.ru), with Reserved 
 Saira: Copyright 2020 The Saira Project Authors (https://github.com/Omnibus-Type/Saira)
 M PLUS Rounded 1c: Copyright 2016 The Rounded M+ Project Authors.
 Rubik One: Copyright (c) 2013, 2014, Hubert and Fischer, Philipp Hubert, Sebastian Fischer
+Scada: Copyright 2012 The Scada Project Authors (lemonad@jovanny.ru)
+Schibsted Grotesk: Copyright 2023 The Schibsted-Grotesk Project Authors (https://github.com/schibsted/schibsted-grotesk)
+Secular One: Copyright 2016 The Secular One Project Authors (https://github.com/googlefonts/secular)
+Sekuya: Copyright 2025 The Sekuya Project Authors (https://github.com/kevinnseptian/SEKUYA)
+Shadows Into Light Two: Copyright (c) 2012, Kimberly Geswein.
+Shantell Sans: Copyright 2022 The Shantell Sans Project Authors (https://github.com/arrowtype/shantell-sans)
+Share Tech: Copyright 2012 The Share Tech Project Authors (post@carrois.com), with Reserved Font Name 'Share'.
 
-Source: https://github.com/google/fonts (ofl/). All are licensed under the SIL Open Font License 1.1:
+Schoolbell: Copyright (c) 2010 by Font Diner, Inc. Licensed under the Apache License 2.0 (see APACHE-2.0.txt),
+not the OFL below.
+
+Source: https://github.com/google/fonts (ofl/). All except Schoolbell are licensed under the SIL Open Font License 1.1:
 
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

@@ -17,6 +17,14 @@ class Fonts {
             { "saira", "Saira", "saira-regular.ttf", "saira-bold.ttf" },
             { "mplusrounded1c", "Rounded Mplus 1c", "mplusrounded1c-regular.ttf", "mplusrounded1c-bold.ttf" },
             { "rubikone", "Rubik One", "rubikone-regular.ttf", null },
+            { "scada", "Scada", "scada-regular.ttf", "scada-bold.ttf" },
+            { "schibstedgrotesk", "Schibsted Grotesk", "schibstedgrotesk-regular.ttf", "schibstedgrotesk-bold.ttf" },
+            { "schoolbell", "Schoolbell", "schoolbell-regular.ttf", null },
+            { "secularone", "Secular One", "secularone-regular.ttf", null },
+            { "sekuya", "Sekuya", "sekuya-regular.ttf", null },
+            { "shadowsintolighttwo", "Shadows Into Light Two", "shadowsintolighttwo-regular.ttf", null },
+            { "shantellsans", "Shantell Sans", "shantellsans-regular.ttf", "shantellsans-bold.ttf" },
+            { "sharetech", "Share Tech", "sharetech-regular.ttf", null },
     };
 
     static Typeface regular = Typeface.DEFAULT;
