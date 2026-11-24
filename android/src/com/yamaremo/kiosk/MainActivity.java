@@ -69,6 +69,15 @@ public class MainActivity extends Activity {
     static final String PREF_DEVICE_ID = "device_id";     // speaker identity, to follow it to a new IP
     static final String PREF_AUTODIM = "autodim";
     static final String PREF_ART_BG = "art_background";      // album art as blurred background
+    static final String PREF_VOL_LIMIT = "volume_limit";      // highest volume the tablet sets, % of max
+    static final String PREF_WAKE_ON = "wake_on";
+    static final String PREF_WAKE_MIN = "wake_minute";        // minutes after midnight
+    static final String PREF_WAKE_WEEKDAYS = "wake_weekdays";
+    static final String PREF_WAKE_PRESET = "wake_preset";     // favourite number, 0 = last station
+    static final String PREF_WAKE_PRESET_NAME = "wake_preset_name";
+    static final String PREF_WAKE_VOL = "wake_volume";
+    static final String PREF_WAKE_RAMP = "wake_ramp";         // minutes to reach the volume
+    static final String PREF_WAKE_LAST = "wake_last";         // yyyymmdd of the last wake-up
     static final String PREF_ART_LEVEL = "art_level";        // its visibility, %
     static final String PREF_DIM_CAMERA = "autodim_camera";
     static final String PREF_NIGHT_LUX = "night_lux";        // light sensor: night below this many lux
@@ -439,6 +448,7 @@ public class MainActivity extends Activity {
             poll();
             // the kiosk app stays in front for days, so the update check runs from here too
             if (System.currentTimeMillis() - lastUpdateCheck > UPDATE_EVERY_MS) checkForUpdates(false);
+            checkWake();
             // with push events working, a slow poll is enough (it also keeps the events subscription alive)
             boolean pushing = System.currentTimeMillis() - lastEventAt < 5 * 60 * 1000;
             if (resumed) ui.postDelayed(this, pushing ? 10000 : POLL_MS);
@@ -1390,6 +1400,7 @@ public class MainActivity extends Activity {
 
         int maxv = maxVolume > 0 ? maxVolume : 100;
         volBar.steps = maxv;
+        volBar.limit = volumeLimit() / (float) maxv;
         volBar.fraction = Math.max(0, Math.min(maxv, volume)) / (float) maxv;
         volBar.color = mute ? C_AMBER : C_TEXT;
         volBar.invalidate();
@@ -1468,6 +1479,14 @@ public class MainActivity extends Activity {
         final CheckBox hideNavCb = new CheckBox(this);
         final EditText textScaleEdit = new EditText(this);
         final CheckBox dimCb = new CheckBox(this);
+        final EditText volLimitEdit = new EditText(this);
+        final CheckBox wakeCb = new CheckBox(this);
+        final CheckBox wakeWdCb = new CheckBox(this);
+        final EditText wakeVolEdit = new EditText(this);
+        final EditText wakeRampEdit = new EditText(this);
+        final int[] wakeMin = { prefs.getInt(PREF_WAKE_MIN, 7 * 60) };
+        final String[] wakeStation = { String.valueOf(prefs.getInt(PREF_WAKE_PRESET, 0)),
+                prefs.getString(PREF_WAKE_PRESET_NAME, "Last played station") };
         final CheckBox camCb = new CheckBox(this);
         final EditText nightThEdit = new EditText(this);
         final EditText nightBrEdit = new EditText(this);
@@ -1594,6 +1613,83 @@ public class MainActivity extends Activity {
             box.addView(sliderRow(nightTxEdit, 10, 100));
             nightSensorSrc[0] = sensorSrc;
 
+            TextView vlh = new TextView(this);
+            vlh.setText("Volume limit (%): the tablet won't set the volume above this");
+            vlh.setPadding(0, dp(8), 0, 0);
+            box.addView(vlh);
+            volLimitEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
+            volLimitEdit.setText(String.valueOf(prefs.getInt(PREF_VOL_LIMIT, 100)));
+            box.addView(sliderRow(volLimitEdit, 1, 100));
+
+            box.addView(sectionHeader("WAKE-UP RADIO"));
+            wakeCb.setText("Wake up with the radio");
+            wakeCb.setChecked(prefs.getBoolean(PREF_WAKE_ON, false));
+            box.addView(wakeCb);
+            final android.widget.Button wakeTime = new android.widget.Button(this);
+            wakeTime.setText("Time: " + hhmm(wakeMin[0]));
+            wakeTime.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    new android.app.TimePickerDialog(MainActivity.this, new android.app.TimePickerDialog.OnTimeSetListener() {
+                        public void onTimeSet(android.widget.TimePicker tp, int h, int m) {
+                            wakeMin[0] = h * 60 + m;
+                            wakeTime.setText("Time: " + hhmm(wakeMin[0]));
+                        }
+                    }, wakeMin[0] / 60, wakeMin[0] % 60, android.text.format.DateFormat.is24HourFormat(MainActivity.this)).show();
+                }
+            });
+            box.addView(wakeTime);
+            wakeWdCb.setText("Weekdays only (Monday to Friday)");
+            wakeWdCb.setChecked(prefs.getBoolean(PREF_WAKE_WEEKDAYS, false));
+            box.addView(wakeWdCb);
+            final android.widget.Button wakeSt = new android.widget.Button(this);
+            wakeSt.setText("Station: " + wakeStation[1]);
+            wakeSt.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    net.execute(new Runnable() { public void run() {
+                        final java.util.List<String[]> presets = loadPresets();
+                        ui.post(new Runnable() { public void run() {
+                            final String[] items = new String[presets.size() + 1];
+                            items[0] = "Last played station";
+                            for (int i = 0; i < presets.size(); i++) items[i + 1] = cleanStation(presets.get(i)[1]);
+                            new AlertDialog.Builder(MainActivity.this).setTitle("Wake-up station")
+                                    .setItems(items, new DialogInterface.OnClickListener() {
+                                        public void onClick(DialogInterface d, int w) {
+                                            wakeStation[0] = w == 0 ? "0" : presets.get(w - 1)[0];
+                                            wakeStation[1] = items[w];
+                                            wakeSt.setText("Station: " + items[w]);
+                                        }
+                                    }).show();
+                        } });
+                    } });
+                }
+            });
+            box.addView(wakeSt);
+            TextView wvl = new TextView(this);
+            wvl.setText("Wake-up volume");
+            box.addView(wvl);
+            wakeVolEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
+            wakeVolEdit.setText(String.valueOf(prefs.getInt(PREF_WAKE_VOL, 25)));
+            box.addView(sliderRow(wakeVolEdit, 1, 100));
+            TextView wrl = new TextView(this);
+            wrl.setText("Raise the volume slowly over (minutes, 0 = start at full wake-up volume)");
+            box.addView(wrl);
+            wakeRampEdit.setInputType(InputType.TYPE_CLASS_NUMBER);
+            wakeRampEdit.setText(String.valueOf(prefs.getInt(PREF_WAKE_RAMP, 3)));
+            box.addView(sliderRow(wakeRampEdit, 0, 15));
+
+            box.addView(sectionHeader("BACKUP"));
+            TextView bkl = new TextView(this);
+            bkl.setText("All settings as one file: " + backupFile().getAbsolutePath());
+            box.addView(bkl);
+            android.widget.Button exp = new android.widget.Button(this);
+            exp.setText("Export settings");
+            exp.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { exportSettings(); } });
+            box.addView(exp);
+            android.widget.Button imp = new android.widget.Button(this);
+            imp.setText("Import settings (replaces the current ones)");
+            imp.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { importSettings(); } });
+            box.addView(imp);
+
             TextView tsl = new TextView(this);
             tsl.setText("Text size (%) \u2013 also pinch the screen; double-tap the song to reset");
             tsl.setPadding(0, dp(8), 0, 0);
@@ -1670,6 +1766,15 @@ public class MainActivity extends Activity {
                             e.putBoolean(PREF_GESTURES, gestCb.isChecked());
                             if (Build.VERSION.SDK_INT < 19) e.putBoolean(PREF_HIDE_NAV, hideNavCb.isChecked());
                             e.putBoolean(PREF_AUTODIM, dimCb.isChecked());
+                            e.putInt(PREF_VOL_LIMIT, intOf(volLimitEdit, 1, 100, prefs.getInt(PREF_VOL_LIMIT, 100)));
+                            e.putBoolean(PREF_WAKE_ON, wakeCb.isChecked());
+                            e.putInt(PREF_WAKE_MIN, wakeMin[0]);
+                            e.putBoolean(PREF_WAKE_WEEKDAYS, wakeWdCb.isChecked());
+                            e.putInt(PREF_WAKE_PRESET, Integer.parseInt(wakeStation[0]));
+                            e.putString(PREF_WAKE_PRESET_NAME, wakeStation[1]);
+                            e.putInt(PREF_WAKE_VOL, intOf(wakeVolEdit, 1, 100, prefs.getInt(PREF_WAKE_VOL, 25)));
+                            e.putInt(PREF_WAKE_RAMP, intOf(wakeRampEdit, 0, 15, prefs.getInt(PREF_WAKE_RAMP, 3)));
+                            if (wakeCb.isChecked() && wakeMin[0] != prefs.getInt(PREF_WAKE_MIN, -1)) e.remove(PREF_WAKE_LAST); // new time: may fire today
                             e.putBoolean(PREF_DIM_CAMERA, camCb.isChecked());
                             e.putInt(nightSensorSrc[0] ? PREF_NIGHT_LUX : PREF_NIGHT_CAM, intOf(nightThEdit, 0, nightSensorSrc[0] ? 1000 : 255,
                                     nightSensorSrc[0] ? prefs.getInt(PREF_NIGHT_LUX, 5) : prefs.getInt(PREF_NIGHT_CAM, 40)));
@@ -1828,6 +1933,15 @@ public class MainActivity extends Activity {
         return row;
     }
 
+    TextView sectionHeader(String title) {
+        TextView t = new TextView(this);
+        t.setText(title);
+        t.setTextColor(0xFF33B5E5);
+        t.setTypeface(Typeface.DEFAULT_BOLD);
+        t.setPadding(0, dp(18), 0, dp(4));
+        return t;
+    }
+
     static int intOf(EditText f, int min, int max, int def) {
         try { return Math.max(min, Math.min(max, Integer.parseInt(f.getText().toString().trim()))); }
         catch (NumberFormatException e) { return def; }
@@ -1945,13 +2059,23 @@ public class MainActivity extends Activity {
         send("main/setInput?input=" + SRC_ID[idx], true);
     }
 
-    void changeVolume(int delta) {
+    /** Highest volume (speaker steps) the tablet may set. */
+    int volumeLimit() {
         int maxv = maxVolume > 0 ? maxVolume : 100;
-        int v = Math.max(0, Math.min(maxv, volume + delta));
+        return Math.max(1, Math.round(maxv * prefs.getInt(PREF_VOL_LIMIT, 100) / 100f));
+    }
+
+    void changeVolume(int delta) {
+        wakeRampActive = false; // the user takes over from a running wake-up ramp
+        int maxv = maxVolume > 0 ? maxVolume : 100;
+        int lim = volumeLimit();
+        int v = Math.max(0, Math.min(lim, volume + delta));
+        if (volume > lim && delta < 0) v = Math.max(0, volume + delta); // above the limit (set elsewhere): allow going down
         volume = v;
         // follower: only a short hold so the bar doesn't jump while −/+ is held
         volumeHoldUntil = System.currentTimeMillis() + (follower() ? 600 : 2500);
-        flash("Volume " + v + (v == maxv ? " \u00b7 max" : "") + (mute ? " \u00b7 muted" : ""), mute ? C_AMBER : C_TEXT, 1500);
+        flash("Volume " + v + (v == maxv ? " \u00b7 max" : (v == lim && delta > 0 ? " \u00b7 limit" : "")) + (mute ? " \u00b7 muted" : ""),
+                mute ? C_AMBER : C_TEXT, 1500);
         // coalesce: only the latest value is sent
         if (pendingVolume.getAndSet(v) < 0) {
             net.execute(new Runnable() {
@@ -2213,6 +2337,131 @@ public class MainActivity extends Activity {
             return null;
         } finally {
             if (c != null) c.disconnect();
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Wake-up radio
+    // ------------------------------------------------------------------
+    boolean wakeRampActive;
+
+    static String hhmm(int minute) { return String.format(Locale.US, "%02d:%02d", minute / 60, minute % 60); }
+
+    /** Called with every status check: fires once at the set minute. */
+    void checkWake() {
+        if (!prefs.getBoolean(PREF_WAKE_ON, false) || TextUtils.isEmpty(ip())) return;
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        int minute = c.get(java.util.Calendar.HOUR_OF_DAY) * 60 + c.get(java.util.Calendar.MINUTE);
+        int target = prefs.getInt(PREF_WAKE_MIN, 7 * 60);
+        // fire within 5 minutes after the set time (covers a missed check), once per day
+        if (minute < target || minute > target + 5) return;
+        int dow = c.get(java.util.Calendar.DAY_OF_WEEK);
+        if (prefs.getBoolean(PREF_WAKE_WEEKDAYS, false) && (dow == java.util.Calendar.SATURDAY || dow == java.util.Calendar.SUNDAY)) return;
+        String today = new SimpleDateFormat("yyyyMMdd", Locale.US).format(c.getTime());
+        if (today.equals(prefs.getString(PREF_WAKE_LAST, ""))) return;
+        prefs.edit().putString(PREF_WAKE_LAST, today).commit();
+        startWake();
+    }
+
+    void startWake() {
+        final int preset = prefs.getInt(PREF_WAKE_PRESET, 0);
+        final int lim = volumeLimit();
+        final int targetVol = Math.max(1, Math.min(lim, prefs.getInt(PREF_WAKE_VOL, 25)));
+        final int rampMin = prefs.getInt(PREF_WAKE_RAMP, 3);
+        final int startVol = rampMin > 0 ? Math.min(3, targetVol) : targetVol;
+        powerOn = true; powerTarget = true; powerChangedAt = System.currentTimeMillis();
+        render();
+        net.execute(new Runnable() { public void run() {
+            request("main/setPower?power=on");
+            try { Thread.sleep(2000); } catch (InterruptedException e) { return; }
+            request("main/setMute?enable=false");
+            request("main/setVolume?volume=" + startVol);
+            request("main/setInput?input=net_radio");
+            try { Thread.sleep(1500); } catch (InterruptedException e) { return; }
+            if (preset > 0) request("netusb/recallPreset?zone=main&num=" + preset);
+            else request("netusb/setPlayback?playback=play");
+            ui.post(new Runnable() { public void run() {
+                toast("Wake-up radio");
+                poll();
+                if (targetVol > startVol) {
+                    wakeRampActive = true;
+                    rampVolume(startVol, targetVol, rampMin * 60000L / (targetVol - startVol));
+                }
+            } });
+        } });
+    }
+
+    /** Raises the volume one step at a time; stops when the user changes the volume. */
+    void rampVolume(final int v, final int target, final long stepMs) {
+        if (!wakeRampActive || v > target) { wakeRampActive = false; return; }
+        net.execute(new Runnable() { public void run() { request("main/setVolume?volume=" + v); } });
+        volume = v;
+        volumeHoldUntil = System.currentTimeMillis() + 1000;
+        render();
+        ui.postDelayed(new Runnable() { public void run() { rampVolume(v + 1, target, stepMs); } }, stepMs);
+    }
+
+    // ------------------------------------------------------------------
+    // Settings backup
+    // ------------------------------------------------------------------
+    java.io.File backupFile() {
+        java.io.File dir = android.os.Environment.getExternalStorageDirectory();
+        if (dir == null || !dir.canWrite()) dir = getExternalFilesDir(null);
+        return new java.io.File(dir, "yamaremo-settings.json");
+    }
+
+    void exportSettings() {
+        java.io.File f = backupFile();
+        try {
+            JSONObject all = new JSONObject();
+            for (java.util.Map.Entry<String, ?> en : prefs.getAll().entrySet()) {
+                Object v = en.getValue();
+                String t = v instanceof Boolean ? "b" : v instanceof Integer ? "i" : v instanceof Float ? "f"
+                        : v instanceof Long ? "l" : "s";
+                all.put(en.getKey(), new JSONObject().put("t", t).put("v", v));
+            }
+            java.io.FileOutputStream out = new java.io.FileOutputStream(f);
+            out.write(new JSONObject().put("app", "yamaremo-kiosk").put("version", versionName()).put("settings", all)
+                    .toString(2).getBytes("UTF-8"));
+            out.close();
+            info("Settings exported", "Saved " + all.length() + " settings to\n" + f.getAbsolutePath()
+                    + "\n\nCopy this file to keep it, or to set up another tablet (put it in the same place there and tap Import).");
+        } catch (Exception e) {
+            info("Export failed", e.getClass().getSimpleName() + ": " + e.getMessage());
+        }
+    }
+
+    void importSettings() {
+        java.io.File f = backupFile();
+        try {
+            java.io.FileInputStream in = new java.io.FileInputStream(f);
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[4096];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            in.close();
+            JSONObject all = new JSONObject(new String(out.toByteArray(), "UTF-8")).getJSONObject("settings");
+            SharedPreferences.Editor e = prefs.edit();
+            java.util.Iterator<String> keys = all.keys();
+            int count = 0;
+            while (keys.hasNext()) {
+                String k = keys.next();
+                JSONObject o = all.getJSONObject(k);
+                String t = o.getString("t");
+                if ("b".equals(t)) e.putBoolean(k, o.getBoolean("v"));
+                else if ("i".equals(t)) e.putInt(k, o.getInt("v"));
+                else if ("f".equals(t)) e.putFloat(k, (float) o.getDouble("v"));
+                else if ("l".equals(t)) e.putLong(k, o.getLong("v"));
+                else e.putString(k, o.getString("v"));
+                count++;
+            }
+            e.commit();
+            toast("Imported " + count + " settings");
+            recreate();
+        } catch (java.io.FileNotFoundException e) {
+            info("Nothing to import", "No backup found at\n" + f.getAbsolutePath());
+        } catch (Exception e) {
+            info("Import failed", e.getClass().getSimpleName() + ": " + e.getMessage());
         }
     }
 

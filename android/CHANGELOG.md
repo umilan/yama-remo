@@ -1,5 +1,16 @@
 # Android kiosk app — changelog
 
+## 1.50 (versionCode 61)
+- Wake-up radio (ADVANCED → WAKE-UP RADIO, off by default): at the set time (optionally weekdays
+  only) the speaker turns on, unmutes, switches to Radio with the chosen favourite (or the last
+  station) and raises the volume step by step to the wake-up volume over 0–15 minutes. Touching the
+  volume stops the ramp. Fires once a day, up to 5 minutes late if a check was missed.
+- Volume limit (ADVANCED, 1–100 %, default 100 %): the tablet never sets the volume above it;
+  "· limit" shows when it is reached, and the dots above the limit are drawn fainter. Volume set
+  higher from elsewhere can still be turned down.
+- Settings backup (ADVANCED → BACKUP): export all settings to `yamaremo-settings.json` on the
+  tablet's storage and import them again (e.g. after a reinstall or on a second tablet).
+
 ## 1.49 (versionCode 60)
 - Radio station picker: tap the Radio tab while on Radio to get a grid of the saved stations
   (favourites); the playing one is highlighted, tap another to switch.

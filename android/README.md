@@ -32,6 +32,13 @@ and `proxy.py` isn't needed.
   Shuffle/Repeat state, radio notices. While muted it shows "Muted" in amber, the dots turn amber
   and the Mute button shows Unmute.
 
+## More (ADVANCED settings)
+
+- Find the speaker on the Wi-Fi; the app follows the speaker to a new IP by itself.
+- Instant updates through the speaker's push events.
+- Night mode from room light (light sensor, or the front camera if there is none).
+- Wake-up radio (off by default), volume limit, settings export/import.
+
 ## Kiosk mode
 
 - The app can be set as the tablet's **Home app**. Then the Home button and every reboot bring you

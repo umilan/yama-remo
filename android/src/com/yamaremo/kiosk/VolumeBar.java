@@ -11,6 +11,7 @@ public class VolumeBar extends View {
     interface Listener { void onPick(int fraction1000); }
 
     float fraction;
+    float limit = 1f;  // volume limit as a fraction: dots above it are drawn fainter
     float offsetY;  // draw the dots this far below the vertical centre (touch area unchanged)
     int steps = 100;
     int color = MainActivity.C_TEXT;
@@ -44,7 +45,7 @@ public class VolumeBar extends View {
                 p.setColor(color);
                 c.drawRect(x - on, cy - onH, x + on, cy + onH, p);
             } else {
-                p.setColor(MainActivity.C_DOT_OFF);
+                p.setColor(i >= Math.round(limit * n) ? 0xFF222222 : MainActivity.C_DOT_OFF);
                 c.drawRect(x - off, cy - off, x + off, cy + off, p);
             }
         }
