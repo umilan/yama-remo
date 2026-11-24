@@ -1,5 +1,9 @@
 # Android kiosk app — changelog
 
+## 1.12.1 (versionCode 16)
+- Fix: opening settings no longer focuses the IP field and pops up the keyboard; it opens only when
+  you tap a field.
+
 ## 1.12 (versionCode 15)
 - Radio playing without song info (the station sends "-") shows "No track info" with the station
   name below, instead of a lone "-" and "Radio". Any title without letters or digits counts as no info.

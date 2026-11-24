@@ -748,6 +748,9 @@ public class MainActivity extends Activity {
 
     void settingsDialog(final boolean admin) {
         LinearLayout box = new LinearLayout(this);
+        // the container takes the initial focus, so no text field grabs it and opens the keyboard
+        box.setFocusable(true);
+        box.setFocusableInTouchMode(true);
         box.setOrientation(LinearLayout.VERTICAL);
         int p = dp(20);
         box.setPadding(p, dp(10), p, 0);
@@ -877,7 +880,11 @@ public class MainActivity extends Activity {
                 public void onClick(DialogInterface d, int w) { leaveKiosk(); }
             });
         }
-        bld.show();
+        AlertDialog dlg = bld.create();
+        dlg.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
+                | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
+        dlg.show();
+        box.requestFocus();
     }
 
     View scroll(View v) {
