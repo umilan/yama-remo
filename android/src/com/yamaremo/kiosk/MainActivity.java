@@ -55,6 +55,7 @@ public class MainActivity extends Activity {
     static final String PREF_BOOT = "boot";
     static final String PREF_PIN = "pin";
     static final String PREF_UPDATE_URL = "update_url";
+    static final String PREF_COMPACT_VOLUME = "compact_volume";
     static final long UPDATE_EVERY_MS = 6L * 3600 * 1000;
 
     static final int C_BG = 0xFF000000;
@@ -80,6 +81,7 @@ public class MainActivity extends Activity {
     Btn offBtn, prevBtn, shuffleBtn, playBtn, repeatBtn, nextBtn, volDn, volUp, updateBtn;
     Btn[] srcBtns = new Btn[SRC_ID.length];
     TextView trackText, artistText, stationText, clockText, dateText, settingsText, ipText;
+    android.widget.FrameLayout bottom;
     LinearLayout playBox, clockBox, transportRow, volRow, offRow;
     VolumeBar volBar;
     boolean clockShown = false;  // first render() switches to the right screen
@@ -293,7 +295,7 @@ public class MainActivity extends Activity {
         root.addView(transportRow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(104)));
 
         // --- bottom: volume when on; Settings / update / IP when off
-        android.widget.FrameLayout bottom = new android.widget.FrameLayout(this);
+        bottom = new android.widget.FrameLayout(this);
         volRow = row();
         volDn = new Btn(this);
         volDn.label = "−"; volDn.textSize = 34; volDn.bold = false;
@@ -313,7 +315,8 @@ public class MainActivity extends Activity {
         offRow = row();
         offRow.setGravity(Gravity.CENTER_VERTICAL);
         settingsText = text("Settings", 20, C_DIM, true);
-        settingsText.setPadding(dp(64), dp(16), dp(24), dp(16));
+        settingsText.setPadding(dp(64), 0, dp(24), 0);
+        settingsText.setGravity(Gravity.CENTER_VERTICAL);
         settingsText.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { showSettings(true); }
         });
@@ -324,18 +327,29 @@ public class MainActivity extends Activity {
             public void onClick(View v) { if (pendingUpdate != null) downloadAndInstall(pendingUpdate); }
         });
         ipText = text("", 20, C_DIM, true);
-        ipText.setGravity(Gravity.RIGHT);
-        ipText.setPadding(dp(24), dp(16), dp(64), dp(16));
+        ipText.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        ipText.setPadding(dp(24), 0, dp(64), 0);
         ipText.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) { showSettings(false); }
         });
-        offRow.addView(settingsText, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        offRow.addView(settingsText, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
         offRow.addView(updateBtn, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1));
-        offRow.addView(ipText, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        offRow.addView(ipText, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT));
         bottom.addView(offRow);
-        root.addView(bottom, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(88)));
+        root.addView(bottom, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, bottomHeight()));
 
         return root;
+    }
+
+    /** Bottom row height: compact (no padding under the volume bar) is the default. */
+    int bottomHeight() {
+        return prefs.getBoolean(PREF_COMPACT_VOLUME, true) ? dp(48) : dp(88);
+    }
+
+    void applyLayoutPrefs() {
+        ViewGroup.LayoutParams lp = bottom.getLayoutParams();
+        lp.height = bottomHeight();
+        bottom.setLayoutParams(lp);
     }
 
     Btn iconBtn(int icon, String caption, final String cmd) {
@@ -557,6 +571,7 @@ public class MainActivity extends Activity {
         final CheckBox boot = new CheckBox(this);
         final EditText pinEdit = new EditText(this);
         final EditText updateUrlEdit = new EditText(this);
+        final CheckBox compactVol = new CheckBox(this);
         if (admin) {
             screenOn.setText("Keep screen on");
             screenOn.setChecked(prefs.getBoolean(PREF_SCREEN_ON, true));
@@ -588,6 +603,16 @@ public class MainActivity extends Activity {
                 }
             });
             box.addView(chk);
+
+            TextView adv = new TextView(this);
+            adv.setText("ADVANCED");
+            adv.setTextColor(0xFF33B5E5);
+            adv.setTypeface(Typeface.DEFAULT_BOLD);
+            adv.setPadding(0, dp(18), 0, dp(4));
+            box.addView(adv);
+            compactVol.setText("Volume bar without bottom padding");
+            compactVol.setChecked(prefs.getBoolean(PREF_COMPACT_VOLUME, true));
+            box.addView(compactVol);
         }
 
         AlertDialog.Builder bld = new AlertDialog.Builder(this)
@@ -604,9 +629,11 @@ public class MainActivity extends Activity {
                             e.putBoolean(PREF_BOOT, boot.isChecked());
                             e.putString(PREF_PIN, pinEdit.getText().toString().trim());
                             e.putString(PREF_UPDATE_URL, updateUrlEdit.getText().toString().trim());
+                            e.putBoolean(PREF_COMPACT_VOLUME, compactVol.isChecked());
                         }
                         e.commit();
                         applyScreenOn();
+                        applyLayoutPrefs();
                         if (ipChanged) { everPolled = false; connected = false; track = ""; artist = ""; input = ""; }
                         render();
                         poll();

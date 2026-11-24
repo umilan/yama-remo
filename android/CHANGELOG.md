@@ -1,5 +1,10 @@
 # Android kiosk app — changelog
 
+## 1.5 (versionCode 8)
+- Volume bar sits closer to the bottom edge: the bottom row is 48 dp instead of 88 dp.
+- New ADVANCED section in settings with "Volume bar without bottom padding" (on by default);
+  turn it off to get the previous spacing back.
+
 ## 1.4 (versionCode 7)
 - Song and artist always on separate rows. For Radio, the combined "Artist - Song" text from the
   station is split (separators ` - `, ` – `, ` — `, ` ~ `, ` | `), and the station name is shown

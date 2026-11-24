@@ -30,8 +30,8 @@ and `proxy.py` isn't needed.
   back to the remote, and Back does nothing.
 - It also starts after a reboot even if it isn't the Home app; you can turn this off.
 - **Settings:** double-tap the clock, or tap **Settings** under it. There you can set the IP, keep
-  the screen on, start after reboot, an optional PIN for this screen, the update URL, and
-  **Leave kiosk**. Tap the IP under the clock to change only the speaker IP.
+  the screen on, start after reboot, an optional PIN for this screen, the update URL, the ADVANCED
+  layout options (volume bar without bottom padding), and **Leave kiosk**. Tap the IP under the clock to change only the speaker IP.
 - **Leave kiosk** opens the app's system page. Tap **Clear defaults** there and the normal
   launcher is the Home app again.
 - On Android 4.2 the navigation bar can only be dimmed, not hidden; Android 4.4+ hides it fully.
