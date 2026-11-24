@@ -674,9 +674,12 @@ public class MainActivity extends Activity {
             if (!hasText(song)) song = ""; // stations send "-" or similar when they have no info
             stationText.setText(station);
             stationText.setVisibility(TextUtils.isEmpty(station) ? View.GONE : View.VISIBLE);
+            int artistColor = C_GRAY;
             if (!TextUtils.isEmpty(song)) {
+                // artist bright, song dimmed
                 trackText.setText(song);
-                trackText.setTextColor(C_TEXT);
+                trackText.setTextColor(C_GRAY);
+                artistColor = C_TEXT;
                 artistText.setText(mute ? "Muted" : (TextUtils.isEmpty(by) ? sourceLabel(input) : by));
             } else if (isLineIn(input)) {
                 trackText.setText(sourceLabel(input));
@@ -694,7 +697,7 @@ public class MainActivity extends Activity {
                 if (System.currentTimeMillis() - Math.max(powerChangedAt, inputChangedAt) < SETTLE_MS)
                     ui.postDelayed(rerender, 1000);
             }
-            artistText.setTextColor(mute ? C_AMBER : C_GRAY);
+            artistText.setTextColor(mute ? C_AMBER : artistColor);
             fitTexts();
         }
 

@@ -11,7 +11,7 @@ and `proxy.py` isn't needed.
 
 - Black, minimal screen. Sources are text tabs along the top (AirPlay, AUX, Optical, Bluetooth,
   Radio), with **OFF** at the end to put the speaker in standby.
-- Playing: big song title with the artist on its own row below it (for Radio, the station's
+- Playing: big song title (dimmed) with the artist (white) on its own row below it (for Radio, the station's
   "Artist - Song" text is split into the two rows and the station name is shown small underneath), then Prev / Shuffle / Settings / Play-Pause / Mute / Repeat / Next
   as outline icons with labels. Shuffle and Repeat are dimmed when off; tapping Repeat cycles
   off → all → one.

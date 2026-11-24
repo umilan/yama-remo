@@ -1,5 +1,8 @@
 # Android kiosk app — changelog
 
+## 1.14 (versionCode 18)
+- Colours swapped while a song plays: artist in full white, song title dimmed grey.
+
 ## 1.13 (versionCode 17)
 - ADVANCED checkbox "Hide playback controls when not touched" (on by default) to switch auto-hide
   on or off; the seconds field below it is greyed out while it's off.
