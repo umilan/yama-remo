@@ -1,5 +1,14 @@
 # Android kiosk app — changelog
 
+## 1.51 (versionCode 62)
+- Choose the tabs: Kiosk settings → "Tabs: …" lists the inputs the speaker reports (system/getFeatures);
+  tick up to 7 and order them with ▲ ▼. Applied on Save.
+- Auto-off at night (ADVANCED → AUTO-OFF AT NIGHT, off by default): if the speaker is still on at the
+  set time (default 01:00), it is switched to standby, once a night.
+- Radio favourites from the tablet: the station grid offers "Save current station" when the playing
+  station isn't a favourite yet (stored on the speaker in the first free favourite slot), and a
+  long-press removes a favourite (if the speaker's firmware allows it; otherwise it says so).
+
 ## 1.50 (versionCode 61)
 - Wake-up radio (ADVANCED → WAKE-UP RADIO, off by default): at the set time (optionally weekdays
   only) the speaker turns on, unmutes, switches to Radio with the chosen favourite (or the last

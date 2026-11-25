@@ -19,7 +19,9 @@ and `proxy.py` isn't needed.
   to jump, and hold −/+ to repeat. The tablet's hardware volume keys also control the speaker.
 - Swipe anywhere on the playing screen: drag up/down for volume, swipe left/right for next/previous
   (dragging on the volume dots still sets the volume directly).
-- Radio: tap the Radio tab while on Radio for a grid of your saved stations.
+- Radio: tap the Radio tab while on Radio for a grid of your saved stations; save the playing
+  station there or long-press one to remove it.
+- Choose and order the tabs in settings (from the inputs the speaker has).
 - The album art (or station logo) shows as a blurred, dimmed background (can be turned off).
 - Radio: Prev/Next switch to the previous/next station saved as a favourite (preset) in the
   MusicCast app.
@@ -37,7 +39,7 @@ and `proxy.py` isn't needed.
 - Find the speaker on the Wi-Fi; the app follows the speaker to a new IP by itself.
 - Instant updates through the speaker's push events.
 - Night mode from room light (light sensor, or the front camera if there is none).
-- Wake-up radio (off by default), volume limit, settings export/import.
+- Wake-up radio and auto-off at night (both off by default), volume limit, settings export/import.
 
 ## Kiosk mode
 

@@ -78,6 +78,10 @@ public class MainActivity extends Activity {
     static final String PREF_WAKE_VOL = "wake_volume";
     static final String PREF_WAKE_RAMP = "wake_ramp";         // minutes to reach the volume
     static final String PREF_WAKE_LAST = "wake_last";         // yyyymmdd of the last wake-up
+    static final String PREF_TABS = "tabs";                   // comma-separated input ids, in order
+    static final String PREF_OFF_ON = "autooff_on";
+    static final String PREF_OFF_MIN = "autooff_minute";      // minutes after midnight
+    static final String PREF_OFF_LAST = "autooff_last";       // yyyymmdd of the last auto-off
     static final String PREF_ART_LEVEL = "art_level";        // its visibility, %
     static final String PREF_DIM_CAMERA = "autodim_camera";
     static final String PREF_NIGHT_LUX = "night_lux";        // light sensor: night below this many lux
@@ -100,8 +104,11 @@ public class MainActivity extends Activity {
     static final int C_ACCENT = 0xFFE0A030;
     static final int C_AMBER = C_ACCENT;
 
-    static final String[] SRC_ID = { "airplay", "aux", "optical", "bluetooth", "net_radio" };
-    static final String[] SRC_LABEL = { "AirPlay", "AUX", "Optical", "Bluetooth", "Radio" };
+    static final String DEFAULT_TABS = "airplay,aux,optical,bluetooth,net_radio";
+    static final int MAX_TABS = 7;
+    // the source tabs, chosen and ordered in settings (PREF_TABS)
+    static String[] SRC_ID = DEFAULT_TABS.split(",");
+    static String[] SRC_LABEL = { "AirPlay", "AUX", "Optical", "Bluetooth", "Radio" };
 
     static final int POLL_MS = 3000;
 
@@ -124,7 +131,7 @@ public class MainActivity extends Activity {
 
     // views
     Btn otherTab, offBtn, prevBtn, shuffleBtn, settingsBtn, playBtn, muteBtn, repeatBtn, nextBtn, volDn, volUp;
-    Btn[] srcBtns = new Btn[SRC_ID.length];
+    Btn[] srcBtns;
     TextView trackText, artistText, stationText, clockText, dateText, settingsText, ipText, updateText;
     android.widget.FrameLayout bottom;
     boolean transportAllowed = true; // speaker on and the input has tracks (first render() corrects it)
@@ -449,6 +456,7 @@ public class MainActivity extends Activity {
             // the kiosk app stays in front for days, so the update check runs from here too
             if (System.currentTimeMillis() - lastUpdateCheck > UPDATE_EVERY_MS) checkForUpdates(false);
             checkWake();
+            checkAutoOff();
             // with push events working, a slow poll is enough (it also keeps the events subscription alive)
             boolean pushing = System.currentTimeMillis() - lastEventAt < 5 * 60 * 1000;
             if (resumed) ui.postDelayed(this, pushing ? 10000 : POLL_MS);
@@ -513,6 +521,8 @@ public class MainActivity extends Activity {
         // --- source tabs + OFF
         LinearLayout tabs = row();
         tabsRow = tabs;
+        loadTabs();
+        srcBtns = new Btn[SRC_ID.length];
         for (int i = 0; i < SRC_ID.length; i++) {
             final int idx = i;
             Btn t = new Btn(this);
@@ -860,6 +870,117 @@ public class MainActivity extends Activity {
         return Character.toUpperCase(t.charAt(0)) + t.substring(1);
     }
 
+    /** Fixed short names for the usual tabs; others come from OTHER_SOURCES. */
+    static String tabLabel(String id) {
+        if ("airplay".equals(id)) return "AirPlay";
+        if ("aux".equals(id)) return "AUX";
+        if ("optical".equals(id)) return "Optical";
+        if ("bluetooth".equals(id)) return "Bluetooth";
+        if ("net_radio".equals(id)) return "Radio";
+        for (String[] o : OTHER_SOURCES) if (o[0].equals(id)) return o[1];
+        String t = id.replace('_', ' ');
+        return t.length() > 0 ? Character.toUpperCase(t.charAt(0)) + t.substring(1) : id;
+    }
+
+    void loadTabs() {
+        String[] ids = prefs.getString(PREF_TABS, DEFAULT_TABS).split(",");
+        java.util.List<String> keep = new java.util.ArrayList<String>();
+        for (String id : ids) if (id.trim().length() > 0 && keep.size() < MAX_TABS) keep.add(id.trim());
+        if (keep.isEmpty()) keep.add("net_radio");
+        SRC_ID = keep.toArray(new String[0]);
+        SRC_LABEL = new String[SRC_ID.length];
+        for (int i = 0; i < SRC_ID.length; i++) SRC_LABEL[i] = tabLabel(SRC_ID[i]);
+    }
+
+    /** Settings: pick and order the tabs from the inputs the speaker reports. */
+    void chooseTabs(final android.widget.Button summary) {
+        final String ipNow = ip();
+        net.execute(new Runnable() { public void run() {
+            final java.util.List<String> all = new java.util.ArrayList<String>();
+            try {
+                JSONObject f = new JSONObject(requestRetry("system/getFeatures"));
+                org.json.JSONArray list = f.getJSONObject("system").getJSONArray("input_list");
+                for (int i = 0; i < list.length(); i++) all.add(list.getJSONObject(i).getString("id"));
+            } catch (Exception ignored) { /* speaker not reachable: offer the known inputs */ }
+            ui.post(new Runnable() { public void run() { tabsDialog(all, summary); } });
+        } });
+    }
+
+    void tabsDialog(java.util.List<String> fromSpeaker, final android.widget.Button summary) {
+        // current tabs first (in their order, ticked), then the other inputs
+        final java.util.List<String> order = new java.util.ArrayList<String>();
+        final java.util.Set<String> on = new java.util.HashSet<String>();
+        for (String id : SRC_ID) { order.add(id); on.add(id); }
+        java.util.List<String> extra = new java.util.ArrayList<String>(fromSpeaker);
+        if (extra.isEmpty()) for (String id : new String[] { "airplay", "aux", "optical", "bluetooth", "usb", "net_radio", "spotify", "server" }) extra.add(id);
+        for (String id : extra) if (!order.contains(id)) order.add(id);
+
+        final LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        list.setPadding(dp(16), dp(8), dp(16), dp(8));
+        final Runnable[] rebuild = new Runnable[1];
+        rebuild[0] = new Runnable() { public void run() {
+            list.removeAllViews();
+            TextView hint = new TextView(MainActivity.this);
+            hint.setText("Tick up to " + MAX_TABS + " tabs; \u25b2 \u25bc change the order. "
+                    + (on.size() > MAX_TABS ? "Too many ticked!" : on.size() + " ticked."));
+            list.addView(hint);
+            for (int i = 0; i < order.size(); i++) {
+                final int idx = i;
+                final String id = order.get(i);
+                LinearLayout r = new LinearLayout(MainActivity.this);
+                r.setGravity(Gravity.CENTER_VERTICAL);
+                CheckBox cb = new CheckBox(MainActivity.this);
+                cb.setText(tabLabel(id) + "   (" + id + ")");
+                cb.setChecked(on.contains(id));
+                cb.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener() {
+                    public void onCheckedChanged(android.widget.CompoundButton b, boolean c) {
+                        if (c) on.add(id); else on.remove(id);
+                        rebuild[0].run();
+                    }
+                });
+                r.addView(cb, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+                android.widget.Button up = new android.widget.Button(MainActivity.this);
+                up.setText("\u25b2");
+                up.setEnabled(i > 0);
+                up.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
+                    java.util.Collections.swap(order, idx, idx - 1); rebuild[0].run(); } });
+                android.widget.Button dn = new android.widget.Button(MainActivity.this);
+                dn.setText("\u25bc");
+                dn.setEnabled(i < order.size() - 1);
+                dn.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
+                    java.util.Collections.swap(order, idx, idx + 1); rebuild[0].run(); } });
+                r.addView(up);
+                r.addView(dn);
+                list.addView(r);
+            }
+        } };
+        rebuild[0].run();
+        new AlertDialog.Builder(this)
+                .setTitle("Tabs")
+                .setView(scroll(list))
+                .setPositiveButton("Use these tabs", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface d, int w) {
+                        StringBuilder sb = new StringBuilder();
+                        int n = 0;
+                        for (String id : order) if (on.contains(id) && n < MAX_TABS) { sb.append(n++ > 0 ? "," : "").append(id); }
+                        if (n == 0) { toast("Pick at least one tab"); return; }
+                        pendingTabs = sb.toString();
+                        summary.setText("Tabs: " + tabsSummary(pendingTabs) + "  (applies on Save)");
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    String pendingTabs; // chosen in the open settings dialog, saved with Save
+
+    static String tabsSummary(String csv) {
+        StringBuilder sb = new StringBuilder();
+        for (String id : csv.split(",")) if (id.length() > 0) sb.append(sb.length() > 0 ? ", " : "").append(tabLabel(id));
+        return sb.toString();
+    }
+
     boolean isTabSource(String id) {
         for (String t : SRC_ID) if (t.equals(id)) return true;
         return false;
@@ -911,6 +1032,39 @@ public class MainActivity extends Activity {
     }
 
     volatile String presetReadError;
+    volatile int freePresetSlot = -1;
+
+    /** Worker thread: saves the station playing now as a speaker favourite. */
+    void saveCurrentStation() {
+        loadPresets();
+        final int slot = freePresetSlot;
+        if (slot < 0) {
+            ui.post(new Runnable() { public void run() {
+                flash("All favourite slots are full \u2013 remove one first", C_AMBER, 4000); } });
+            return;
+        }
+        String resp = request("netusb/storePreset?num=" + slot);
+        int code = -1;
+        try { code = resp == null ? -1 : new JSONObject(resp).optInt("response_code", 0); } catch (Exception ignored) { }
+        final int fc = code;
+        ui.post(new Runnable() { public void run() {
+            if (fc == 0) { flash("Saved as favourite " + slot, C_TEXT, 2500); showStationPicker(); }
+            else flash(fc < 0 ? "Couldn't reach the speaker" : "Speaker refused to save (code " + fc + ")", C_AMBER, 4000);
+        } });
+    }
+
+    /** Worker thread: removes a favourite (needs a speaker firmware that supports clearPreset). */
+    void removeStation(final String[] preset) {
+        String resp = request("netusb/clearPreset?num=" + preset[0]);
+        int code = -1;
+        try { code = resp == null ? -1 : new JSONObject(resp).optInt("response_code", 0); } catch (Exception ignored) { }
+        final int fc = code;
+        ui.post(new Runnable() { public void run() {
+            if (fc == 0) { flash("Removed " + cleanStation(preset[1]), C_TEXT, 2500); showStationPicker(); }
+            else flash(fc < 0 ? "Couldn't reach the speaker"
+                    : "This speaker can't remove favourites from apps \u2013 remove it in the MusicCast app", C_AMBER, 5000);
+        } });
+    }
 
     /** Worker thread: reads the radio favourites fresh from the speaker ({number, name} each). */
     java.util.List<String[]> loadPresets() {
@@ -921,9 +1075,11 @@ public class MainActivity extends Activity {
             JSONObject j = new JSONObject(r);
             if (j.optInt("response_code", 0) != 0) readError = "code " + j.optInt("response_code");
             org.json.JSONArray arr = j.getJSONArray("preset_info");
+            freePresetSlot = -1;
             for (int i = 0; i < arr.length(); i++) {
                 JSONObject p = arr.getJSONObject(i);
                 String name = p.optString("text", "");
+                if (freePresetSlot < 0 && name.length() == 0) freePresetSlot = i + 1; // first empty favourite
                 if ("net_radio".equals(p.optString("input")) && name.length() > 0)
                     list.add(new String[] { String.valueOf(i + 1), name });
             }
@@ -1047,11 +1203,34 @@ public class MainActivity extends Activity {
                 return t;
             }
         });
-        final AlertDialog dlg = new AlertDialog.Builder(this)
-                .setTitle("Radio stations")
+        AlertDialog.Builder bld = new AlertDialog.Builder(this)
+                .setTitle("Radio stations  (long-press one to remove it)")
                 .setView(grid)
-                .setNegativeButton("Close", null)
-                .create();
+                .setNegativeButton("Close", null);
+        if (cur < 0 && "net_radio".equals(input) && connected && powerOn) {
+            // the station playing now isn't a favourite yet: offer to save it
+            bld.setPositiveButton("Save current station", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface d, int w) {
+                    net.execute(new Runnable() { public void run() { saveCurrentStation(); } });
+                }
+            });
+        }
+        final AlertDialog dlg = bld.create();
+        grid.setOnItemLongClickListener(new android.widget.AdapterView.OnItemLongClickListener() {
+            public boolean onItemLongClick(android.widget.AdapterView<?> p, View v, final int i, long id) {
+                new AlertDialog.Builder(MainActivity.this)
+                        .setMessage("Remove \"" + cleanStation(presets.get(i)[1]) + "\" from the favourites?")
+                        .setPositiveButton("Remove", new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface d, int w) {
+                                dlg.dismiss();
+                                net.execute(new Runnable() { public void run() { removeStation(presets.get(i)); } });
+                            }
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+                return true;
+            }
+        });
         grid.setOnItemClickListener(new android.widget.AdapterView.OnItemClickListener() {
             public void onItemClick(android.widget.AdapterView<?> p, View v, final int i, long id) {
                 dlg.dismiss();
@@ -1481,6 +1660,8 @@ public class MainActivity extends Activity {
         final CheckBox dimCb = new CheckBox(this);
         final EditText volLimitEdit = new EditText(this);
         final CheckBox wakeCb = new CheckBox(this);
+        final CheckBox offCb = new CheckBox(this);
+        final int[] offMin = { prefs.getInt(PREF_OFF_MIN, 60) };
         final CheckBox wakeWdCb = new CheckBox(this);
         final EditText wakeVolEdit = new EditText(this);
         final EditText wakeRampEdit = new EditText(this);
@@ -1517,6 +1698,14 @@ public class MainActivity extends Activity {
             });
             box.addView(fontBtn);
             fontPick = fontChoice;
+
+            pendingTabs = null;
+            final android.widget.Button tabsBtn = new android.widget.Button(this);
+            tabsBtn.setText("Tabs: " + tabsSummary(prefs.getString(PREF_TABS, DEFAULT_TABS)));
+            tabsBtn.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) { chooseTabs(tabsBtn); }
+            });
+            box.addView(tabsBtn);
             TextView l2 = new TextView(this);
             l2.setText("Admin PIN for this screen (empty = no PIN)");
             box.addView(l2);
@@ -1677,6 +1866,24 @@ public class MainActivity extends Activity {
             wakeRampEdit.setText(String.valueOf(prefs.getInt(PREF_WAKE_RAMP, 3)));
             box.addView(sliderRow(wakeRampEdit, 0, 15));
 
+            box.addView(sectionHeader("AUTO-OFF AT NIGHT"));
+            offCb.setText("Switch the speaker off if it is still on at");
+            offCb.setChecked(prefs.getBoolean(PREF_OFF_ON, false));
+            box.addView(offCb);
+            final android.widget.Button offTime = new android.widget.Button(this);
+            offTime.setText("Time: " + hhmm(offMin[0]));
+            offTime.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    new android.app.TimePickerDialog(MainActivity.this, new android.app.TimePickerDialog.OnTimeSetListener() {
+                        public void onTimeSet(android.widget.TimePicker tp, int h, int m) {
+                            offMin[0] = h * 60 + m;
+                            offTime.setText("Time: " + hhmm(offMin[0]));
+                        }
+                    }, offMin[0] / 60, offMin[0] % 60, android.text.format.DateFormat.is24HourFormat(MainActivity.this)).show();
+                }
+            });
+            box.addView(offTime);
+
             box.addView(sectionHeader("BACKUP"));
             TextView bkl = new TextView(this);
             bkl.setText("All settings as one file: " + backupFile().getAbsolutePath());
@@ -1768,6 +1975,12 @@ public class MainActivity extends Activity {
                             e.putBoolean(PREF_AUTODIM, dimCb.isChecked());
                             e.putInt(PREF_VOL_LIMIT, intOf(volLimitEdit, 1, 100, prefs.getInt(PREF_VOL_LIMIT, 100)));
                             e.putBoolean(PREF_WAKE_ON, wakeCb.isChecked());
+                            e.putBoolean(PREF_OFF_ON, offCb.isChecked());
+                            e.putInt(PREF_OFF_MIN, offMin[0]);
+                            if (pendingTabs != null && !pendingTabs.equals(prefs.getString(PREF_TABS, DEFAULT_TABS))) {
+                                e.putString(PREF_TABS, pendingTabs);
+                                fontChanged = true; // rebuild the screen with the new tabs
+                            }
                             e.putInt(PREF_WAKE_MIN, wakeMin[0]);
                             e.putBoolean(PREF_WAKE_WEEKDAYS, wakeWdCb.isChecked());
                             e.putInt(PREF_WAKE_PRESET, Integer.parseInt(wakeStation[0]));
@@ -2361,6 +2574,22 @@ public class MainActivity extends Activity {
         if (today.equals(prefs.getString(PREF_WAKE_LAST, ""))) return;
         prefs.edit().putString(PREF_WAKE_LAST, today).commit();
         startWake();
+    }
+
+    /** Auto-off: once a night, if the speaker is still on at the set time, put it in standby. */
+    void checkAutoOff() {
+        if (!prefs.getBoolean(PREF_OFF_ON, false) || !connected || !powerOn) return;
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        int minute = c.get(java.util.Calendar.HOUR_OF_DAY) * 60 + c.get(java.util.Calendar.MINUTE);
+        int target = prefs.getInt(PREF_OFF_MIN, 60);
+        if (minute < target || minute > target + 5) return;
+        String today = new SimpleDateFormat("yyyyMMdd", Locale.US).format(c.getTime());
+        if (today.equals(prefs.getString(PREF_OFF_LAST, ""))) return;
+        prefs.edit().putString(PREF_OFF_LAST, today).commit();
+        powerOn = false; powerTarget = false; powerChangedAt = System.currentTimeMillis();
+        render();
+        send("main/setPower?power=standby", true);
+        toast("Auto-off: speaker switched to standby");
     }
 
     void startWake() {
