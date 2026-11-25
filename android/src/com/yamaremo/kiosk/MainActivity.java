@@ -1,5 +1,7 @@
 package com.yamaremo.kiosk;
 
+import static com.yamaremo.kiosk.TextLogic.*;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -158,10 +160,13 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        Diag.init(getApplicationContext());
+        Diag.log("APP", "started v" + versionName() + ", speaker IP " + (ip().length() > 0 ? ip() : "not set"));
         Fonts.apply(this, prefs.getString(PREF_FONT, "default"));
         Fonts.scale = prefs.getFloat(PREF_TEXT_SCALE, 1f);
         events = new Events(new Events.Listener() {
             public void onEvent(String json) {
+                if (lastEventAt == 0) Diag.log("EVENTS", "push updates from the speaker are working");
                 lastEventAt = System.currentTimeMillis();
                 ui.post(new Runnable() { public void run() { poll(); } }); // poll() ignores overlapping calls
             }
@@ -851,15 +856,6 @@ public class MainActivity extends Activity {
         return t;
     }
 
-    static final String[][] OTHER_SOURCES = {
-            { "usb", "USB" }, { "spotify", "Spotify" }, { "server", "Server" }, { "tidal", "TIDAL" },
-            { "deezer", "Deezer" }, { "qobuz", "Qobuz" }, { "amazon_music", "Amazon Music" },
-            { "napster", "Napster" }, { "pandora", "Pandora" }, { "siriusxm", "SiriusXM" },
-            { "juke", "JUKE" }, { "radiko", "radiko" }, { "alexa", "Alexa" }, { "mc_link", "MusicCast Link" },
-            { "tuner", "Tuner" }, { "line_in", "Line In" }, { "line1", "Line 1" }, { "line2", "Line 2" },
-            { "line3", "Line 3" }, { "coaxial", "Coaxial" }, { "hdmi", "HDMI" }, { "tv", "TV" },
-            { "phono", "Phono" }, { "cd", "CD" }, { "bluetooth", "Bluetooth" },
-    };
 
     String sourceLabel(String id) {
         for (int i = 0; i < SRC_ID.length; i++) if (SRC_ID[i].equals(id)) return SRC_LABEL[i];
@@ -870,17 +866,6 @@ public class MainActivity extends Activity {
         return Character.toUpperCase(t.charAt(0)) + t.substring(1);
     }
 
-    /** Fixed short names for the usual tabs; others come from OTHER_SOURCES. */
-    static String tabLabel(String id) {
-        if ("airplay".equals(id)) return "AirPlay";
-        if ("aux".equals(id)) return "AUX";
-        if ("optical".equals(id)) return "Optical";
-        if ("bluetooth".equals(id)) return "Bluetooth";
-        if ("net_radio".equals(id)) return "Radio";
-        for (String[] o : OTHER_SOURCES) if (o[0].equals(id)) return o[1];
-        String t = id.replace('_', ' ');
-        return t.length() > 0 ? Character.toUpperCase(t.charAt(0)) + t.substring(1) : id;
-    }
 
     void loadTabs() {
         String[] ids = prefs.getString(PREF_TABS, DEFAULT_TABS).split(",");
@@ -975,11 +960,6 @@ public class MainActivity extends Activity {
 
     String pendingTabs; // chosen in the open settings dialog, saved with Save
 
-    static String tabsSummary(String csv) {
-        StringBuilder sb = new StringBuilder();
-        for (String id : csv.split(",")) if (id.length() > 0) sb.append(sb.length() > 0 ? ", " : "").append(tabLabel(id));
-        return sb.toString();
-    }
 
     boolean isTabSource(String id) {
         for (String t : SRC_ID) if (t.equals(id)) return true;
@@ -1026,10 +1006,6 @@ public class MainActivity extends Activity {
 
     volatile String presetDiag = "";
 
-    /** Lower-case station name without location, underscores and punctuation, for matching. */
-    static String norm(String st) {
-        return stripLocation(st == null ? "" : st).toLowerCase().replace('_', ' ').replaceAll("[^\\p{L}\\p{N} ]", "").trim();
-    }
 
     volatile String presetReadError;
     volatile int freePresetSlot = -1;
@@ -1135,6 +1111,7 @@ public class MainActivity extends Activity {
                 stationChangedAt = 0;
                 flash(fc < 0 ? "Couldn't reach the speaker"
                         : "Speaker refused " + cleanStation(target[1]) + " (code " + fc + ")", C_AMBER, 4000);
+                Diag.log("RADIO", "switch to favourite " + target[0] + " failed (code " + fc + ")");
             }
             render();
             ui.postDelayed(new Runnable() { public void run() { poll(); } }, 1200);
@@ -1243,12 +1220,6 @@ public class MainActivity extends Activity {
         dlg.show();
     }
 
-    /** True if the text has at least one letter or digit ("-" or "..." doesn't count). */
-    static boolean hasText(String t) {
-        if (t == null) return false;
-        for (int i = 0; i < t.length(); i++) if (Character.isLetterOrDigit(t.charAt(i))) return true;
-        return false;
-    }
 
     /** {headline, hint} when there is no song to show, based on what the speaker reports. */
     String[] situation(String station) {
@@ -1278,33 +1249,8 @@ public class MainActivity extends Activity {
         return new String[] { "Not playing", src };
     }
 
-    /** Splits radio metadata "Artist - Song" into {artist, song}; no separator → {"", whole text}. */
-    static String[] splitArtistSong(String t) {
-        if (t == null) return new String[] { "", "" };
-        t = t.trim();
-        for (String sep : new String[] { " - ", " \u2013 ", " \u2014 ", " ~ ", " | " }) {
-            int i = t.indexOf(sep);
-            if (i > 0 && i + sep.length() < t.length())
-                return new String[] { t.substring(0, i).trim(), t.substring(i + sep.length()).trim() };
-        }
-        // some stations send "Artist-Song" without spaces: split only if there is exactly one dash
-        int d = t.indexOf('-');
-        if (d >= 2 && d == t.lastIndexOf('-') && t.length() - d - 1 >= 2)
-            return new String[] { t.substring(0, d).trim(), t.substring(d + 1).trim() };
-        return new String[] { "", t };
-    }
 
-    /** "Rádio_FM (Bratislava/Slovak)" → "Rádio_FM": drops a trailing part in brackets. */
-    static String stripLocation(String station) {
-        if (station == null) return "";
-        String s = station.replaceAll("\\s*[(\\[][^()\\[\\]]*[)\\]]\\s*$", "").trim();
-        return s.length() > 0 ? s : station.trim();
-    }
 
-    /** Inputs with no tracks, so no transport row (same list as the web remote). */
-    static boolean isLineIn(String id) {
-        return "aux".equals(id) || "optical".equals(id) || "usb".equals(id) || "line_in".equals(id);
-    }
 
     /** Shrinks text so it fits in one line of the given width, between max and min sp. */
     void fit(TextView t, float maxSp, float minSp, float widthPx) {
@@ -1884,6 +1830,12 @@ public class MainActivity extends Activity {
             });
             box.addView(offTime);
 
+            box.addView(sectionHeader("DIAGNOSTICS"));
+            android.widget.Button diag = new android.widget.Button(this);
+            diag.setText("Show diagnostics log");
+            diag.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { showDiagnostics(); } });
+            box.addView(diag);
+
             box.addView(sectionHeader("BACKUP"));
             TextView bkl = new TextView(this);
             bkl.setText("All settings as one file: " + backupFile().getAbsolutePath());
@@ -2060,17 +2012,6 @@ public class MainActivity extends Activity {
         catch (Exception e) { return "?"; }
     }
 
-    /** Four numbers 0-255 separated by dots (a host name with a letter is accepted too). */
-    static boolean validIp(String s) {
-        if (s == null || s.length() == 0) return false;
-        if (s.matches(".*[a-zA-Z].*")) return s.matches("[a-zA-Z0-9.-]+");
-        String[] p = s.split("\\.", -1);
-        if (p.length != 4) return false;
-        for (String x : p) {
-            if (!x.matches("\\d{1,3}") || Integer.parseInt(x) > 255) return false;
-        }
-        return true;
-    }
 
     int[] fontPick; // choice in the open settings dialog
 
@@ -2146,6 +2087,33 @@ public class MainActivity extends Activity {
         return row;
     }
 
+    /** Everything useful for a remote diagnosis on one screen (photo-friendly). */
+    void showDiagnostics() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("App ").append(versionName()).append(" \u00b7 Android ").append(Build.VERSION.RELEASE)
+          .append(" \u00b7 ").append(Build.MANUFACTURER).append(' ').append(Build.MODEL).append('\n');
+        sb.append("Speaker ").append(ip()).append(connected ? " connected" : " NOT connected")
+          .append(", input ").append(input).append(", power ").append(powerOn ? "on" : "standby")
+          .append(", volume ").append(volume).append('/').append(maxVolume).append('\n');
+        sb.append("Push events: ").append(lastEventAt == 0 ? "none received" : "last " + (System.currentTimeMillis() - lastEventAt) / 1000 + " s ago").append('\n');
+        sb.append(healthText()).append('\n').append(lightText()).append("\n\n");
+        sb.append(Diag.text());
+        final TextView t = new TextView(this);
+        t.setText(sb.toString());
+        t.setTypeface(Typeface.MONOSPACE);
+        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        t.setPadding(dp(12), dp(8), dp(12), dp(8));
+        t.setTextIsSelectable(true);
+        new AlertDialog.Builder(this)
+                .setTitle("Diagnostics")
+                .setView(scroll(t))
+                .setPositiveButton("Close", null)
+                .setNeutralButton("Clear log", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface d, int w) { Diag.clear(); Diag.log("APP", "log cleared"); }
+                })
+                .show();
+    }
+
     TextView sectionHeader(String title) {
         TextView t = new TextView(this);
         t.setText(title);
@@ -2189,7 +2157,11 @@ public class MainActivity extends Activity {
                     public void run() {
                         updateBusy = false;
                         if (btn != null) { btn.setText(btnText); btn.setEnabled(true); }
+                        String before = pendingUpdate != null ? pendingUpdate.versionName : "";
                         pendingUpdate = fi != null && fi.newer ? fi : null;
+                        if (fe != null) Diag.log("UPDATE", (manual ? "check" : "automatic check") + " failed: " + fe);
+                        else if (pendingUpdate != null && !pendingUpdate.versionName.equals(before))
+                            Diag.log("UPDATE", pendingUpdate.versionName + " available (" + pendingUpdate.source + ")");
                         render();
                         if (!manual) return;
                         if (fe != null) info("Update check failed", fe);
@@ -2226,7 +2198,8 @@ public class MainActivity extends Activity {
                     public void run() {
                         updateBusy = false;
                         updateText.setText("Update " + info.versionName);
-                        if (fe != null) { toast("Download failed: " + fe); return; }
+                        if (fe != null) { toast("Download failed: " + fe); Diag.log("UPDATE", "download failed: " + fe); return; }
+                        Diag.log("UPDATE", "downloaded " + info.versionName + ", installer opened");
                         try { Updater.install(MainActivity.this, ff); }
                         catch (Exception e) { toast("Can't open the installer: " + e.getMessage()); }
                     }
@@ -2347,6 +2320,8 @@ public class MainActivity extends Activity {
             render();
             return;
         }
+        if (!connected && everPolledOnce) Diag.log("CONNECTION", "restored");
+        everPolledOnce = true;
         connected = true;
         failStreak = 0;
         rememberSpeaker();
@@ -2399,6 +2374,7 @@ public class MainActivity extends Activity {
     // Speaker discovery and push events
     // ------------------------------------------------------------------
     Events events;
+    boolean everPolledOnce;
     volatile long lastEventAt;
     boolean speakerChecked;
     long lastFollowAt;
@@ -2426,6 +2402,7 @@ public class MainActivity extends Activity {
                         prefs.edit().putString(PREF_IP, sp.ip).commit();
                         everPolled = false; failStreak = 0; speakerChecked = true;
                         toast("Speaker found at its new address " + sp.ip);
+                        Diag.log("SPEAKER", "found at new address " + sp.ip);
                         render();
                         poll();
                     } });
@@ -2558,7 +2535,6 @@ public class MainActivity extends Activity {
     // ------------------------------------------------------------------
     boolean wakeRampActive;
 
-    static String hhmm(int minute) { return String.format(Locale.US, "%02d:%02d", minute / 60, minute % 60); }
 
     /** Called with every status check: fires once at the set minute. */
     void checkWake() {
@@ -2590,6 +2566,7 @@ public class MainActivity extends Activity {
         render();
         send("main/setPower?power=standby", true);
         toast("Auto-off: speaker switched to standby");
+        Diag.log("AUTO-OFF", "speaker switched to standby");
     }
 
     void startWake() {
@@ -2611,6 +2588,7 @@ public class MainActivity extends Activity {
             else request("netusb/setPlayback?playback=play");
             ui.post(new Runnable() { public void run() {
                 toast("Wake-up radio");
+                Diag.log("WAKE-UP", "radio started" + (preset > 0 ? " (favourite " + preset + ")" : ""));
                 poll();
                 if (targetVol > startVol) {
                     wakeRampActive = true;
@@ -2695,6 +2673,7 @@ public class MainActivity extends Activity {
     }
 
     void applyNight(boolean on) {
+        if (on != night) Diag.log("NIGHT", (on ? "on" : "off") + " (" + lightSource + " " + Math.round(lightValue) + ")");
         night = on;
         WindowManager.LayoutParams lp = getWindow().getAttributes();
         lp.screenBrightness = on ? Math.max(0.01f, prefs.getInt(PREF_NIGHT_BRIGHT, 5) / 100f)
@@ -2718,7 +2697,11 @@ public class MainActivity extends Activity {
         failStreak++;
         worstStreak = Math.max(worstStreak, failStreak);
         lastFailAt = System.currentTimeMillis();
-        if (failStreak >= failLimit()) { connected = false; followSpeaker(); }
+        if (failStreak >= failLimit()) {
+            if (connected) Diag.log("CONNECTION", "lost after " + failStreak + " failed checks (" + lastNetError + ")");
+            connected = false;
+            followSpeaker();
+        }
     }
 
     String healthText() {

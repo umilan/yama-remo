@@ -1,5 +1,15 @@
 # Android kiosk app — changelog
 
+## 1.52 (versionCode 63)
+- Diagnostics (ADVANCED → DIAGNOSTICS → "Show diagnostics log"): app/Android/device, speaker state,
+  push events, connection health, room light, and the last 300 events, newest first: app start,
+  connection lost/restored (with the error), speaker moved to a new IP, update checks, downloads,
+  wake-up, auto-off, night mode, radio switch failures and crashes (with the cause). Kept in a file,
+  so it survives restarts and crashes. Text is selectable; "Clear log" empties it.
+- Code: pure text logic moved to `TextLogic.java` with 44 unit tests (`android/run-tests.sh`);
+  `release.sh` runs them before every build and stops on a failure.
+- Repository: only the newest 10 APKs are kept in `android/releases/`.
+
 ## 1.51 (versionCode 62)
 - Choose the tabs: Kiosk settings → "Tabs: …" lists the inputs the speaker reports (system/getFeatures);
   tick up to 7 and order them with ▲ ▼. Applied on Save.

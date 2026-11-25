@@ -10,9 +10,16 @@ MSG=${1:?commit message}
 TRAILER="Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01RXigPz8r7sVFLM8zd2ph79"
 
+android/run-tests.sh || { echo "Tests failed: nothing released."; exit 1; }
 android/build-apk.sh >/dev/null
 VN=$(sed -n 's/.*android:versionName="\([^"]*\)".*/\1/p' android/AndroidManifest.xml)
 VC=$(sed -n 's/.*android:versionCode="\([0-9]*\)".*/\1/p' android/AndroidManifest.xml)
+
+# keep only the newest KEEP release APKs in the tree. Older versions stay reachable through git
+# history; the tablet updates via commit-id links, which keep working.
+KEEP=10
+ls android/releases/yamaremo-kiosk-*.apk | sed 's/.*yamaremo-kiosk-\(.*\)\.apk/\1/' | sort -t. -k1,1n -k2,2n -k3,3n \
+    | head -n -$KEEP | while read v; do git rm -q --cached "android/releases/yamaremo-kiosk-$v.apk" 2>/dev/null; rm -f "android/releases/yamaremo-kiosk-$v.apk"; done
 
 git add -A android
 git reset -q android/version.json            # announce only after the APK commit exists
