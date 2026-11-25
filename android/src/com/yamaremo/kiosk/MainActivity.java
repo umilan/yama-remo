@@ -413,6 +413,7 @@ public class MainActivity extends Activity {
 
     @Override
     public boolean dispatchTouchEvent(android.view.MotionEvent e) {
+        if (settingsOpen()) return super.dispatchTouchEvent(e); // no swipes / pinch in settings
         int a = e.getActionMasked();
         // two fingers: pinch scales the text; the views stop getting this gesture
         scaleDetector().onTouchEvent(e);
@@ -445,7 +446,7 @@ public class MainActivity extends Activity {
 
     /** Kiosk: Back does nothing. */
     @Override
-    public void onBackPressed() { }
+    public void onBackPressed() { if (settingsOpen() && settingsSave != null) settingsSave.run(); }
 
     @Override
     public boolean onKeyDown(int keyCode, KeyEvent event) {
@@ -1679,6 +1680,7 @@ public class MainActivity extends Activity {
 
             TextView adv = new TextView(this);
             adv.setText("ADVANCED");
+            adv.setTag("section");
             adv.setTextColor(0xFF33B5E5);
             adv.setTypeface(Typeface.DEFAULT_BOLD);
             adv.setPadding(0, dp(18), 0, dp(4));
@@ -1894,11 +1896,8 @@ public class MainActivity extends Activity {
             box.addView(health);
         }
 
-        AlertDialog.Builder bld = new AlertDialog.Builder(this)
-                .setTitle(admin ? "Kiosk settings" : "Speaker")
-                .setView(scroll(box))
-                .setPositiveButton("Save", new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface d, int w) {
+        final Runnable saveAction = new Runnable() {
+                    public void run() {
                         SharedPreferences.Editor e = prefs.edit();
                         String newIp = ipEdit.getText().toString().trim();
                         if (!validIp(newIp)) {
@@ -1978,21 +1977,10 @@ public class MainActivity extends Activity {
                         render();
                         poll();
                         hideSystemBars();
+                        closeSettings();
                     }
-                })
-                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface d, int w) { hideSystemBars(); }
-                });
-        if (admin) {
-            bld.setNeutralButton("Leave kiosk", new DialogInterface.OnClickListener() {
-                public void onClick(DialogInterface d, int w) { leaveKiosk(); }
-            });
-        }
-        AlertDialog dlg = bld.create();
-        dlg.getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
-                | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
-        dlg.show();
-        box.requestFocus();
+                };
+        openSettingsScreen(box, admin, saveAction);
     }
 
     View scroll(View v) {
@@ -2087,6 +2075,199 @@ public class MainActivity extends Activity {
         return row;
     }
 
+    // ------------------------------------------------------------------
+    // Full-screen settings: sidebar of sections, big controls, X = save & close
+    // ------------------------------------------------------------------
+    android.widget.FrameLayout settingsScreen;
+
+    boolean settingsOpen() { return settingsScreen != null; }
+
+    void closeSettings() {
+        if (settingsScreen == null) return;
+        android.view.inputmethod.InputMethodManager imm =
+                (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(settingsScreen.getWindowToken(), 0);
+        ((ViewGroup) settingsScreen.getParent()).removeView(settingsScreen);
+        settingsScreen = null;
+        hideSystemBars();
+    }
+
+    /** Splits the settings controls into sections at the "section" headers and shows them full screen. */
+    void openSettingsScreen(LinearLayout box, boolean admin, final Runnable save) {
+        closeSettings();
+        // sections: everything before the first header is "General" (or "Speaker" for the IP-only view)
+        final java.util.List<String> names = new java.util.ArrayList<String>();
+        final java.util.List<LinearLayout> pages = new java.util.ArrayList<LinearLayout>();
+        java.util.List<View> children = new java.util.ArrayList<View>();
+        for (int i = 0; i < box.getChildCount(); i++) children.add(box.getChildAt(i));
+        box.removeAllViews();
+        LinearLayout page = null;
+        for (View v : children) {
+            if (page == null || "section".equals(v.getTag())) {
+                String title = "section".equals(v.getTag()) ? ((TextView) v).getText().toString() : (admin ? "General" : "Speaker");
+                names.add(title.substring(0, 1) + title.substring(1).toLowerCase(Locale.getDefault()));
+                page = new LinearLayout(this);
+                page.setOrientation(LinearLayout.VERTICAL);
+                pages.add(page);
+                TextView h = new TextView(this);
+                h.setText(names.get(names.size() - 1));
+                h.setTextSize(TypedValue.COMPLEX_UNIT_SP, 30);
+                h.setTypeface(Fonts.bold);
+                h.setTextColor(C_TEXT);
+                h.setPadding(0, 0, 0, dp(12));
+                page.addView(h);
+                if ("section".equals(v.getTag())) continue;
+            }
+            page.addView(v);
+        }
+        for (LinearLayout pg : pages) styleSettings(pg);
+
+        final android.widget.FrameLayout screen = new android.widget.FrameLayout(this);
+        screen.setBackgroundColor(C_BG);
+        screen.setClickable(true); // nothing underneath reacts
+        LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.HORIZONTAL);
+
+        // sidebar
+        final LinearLayout side = new LinearLayout(this);
+        side.setOrientation(LinearLayout.VERTICAL);
+        side.setPadding(dp(12), dp(12), dp(12), dp(12));
+        final android.widget.ScrollView content = new android.widget.ScrollView(this);
+        content.setFillViewport(true);
+        final LinearLayout holder = new LinearLayout(this);
+        holder.setOrientation(LinearLayout.VERTICAL);
+        holder.setPadding(dp(28), dp(20), dp(96), dp(40)); // right padding leaves room for the X
+        holder.setFocusableInTouchMode(true); // keeps the keyboard closed until a field is tapped
+        content.addView(holder);
+        final java.util.List<TextView> items = new java.util.ArrayList<TextView>();
+        for (int i = 0; i < names.size(); i++) {
+            final int idx = i;
+            TextView it = sideItem(names.get(i));
+            it.setOnClickListener(new View.OnClickListener() { public void onClick(View v) {
+                holder.removeAllViews();
+                holder.addView(pages.get(idx));
+                content.scrollTo(0, 0);
+                for (int k = 0; k < items.size(); k++) {
+                    items.get(k).setTextColor(k == idx ? C_BG : C_TEXT);
+                    items.get(k).setBackgroundDrawable(roundedBg(k == idx ? C_ACCENT : 0x00000000));
+                }
+            } });
+            items.add(it);
+            side.addView(it);
+        }
+        View spacer = new View(this);
+        side.addView(spacer, new LinearLayout.LayoutParams(1, 0, 1));
+        TextView cancel = sideItem("Cancel");
+        cancel.setTextColor(C_DIM);
+        cancel.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { closeSettings(); } });
+        side.addView(cancel);
+        if (admin) {
+            TextView leave = sideItem("Leave kiosk");
+            leave.setTextColor(C_DIM);
+            leave.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { closeSettings(); leaveKiosk(); } });
+            side.addView(leave);
+        }
+        android.widget.ScrollView sideScroll = new android.widget.ScrollView(this);
+        sideScroll.setFillViewport(true);
+        sideScroll.addView(side);
+        sideScroll.setBackgroundColor(0xFF141414);
+        body.addView(sideScroll, new LinearLayout.LayoutParams(dp(250), ViewGroup.LayoutParams.MATCH_PARENT));
+        body.addView(content, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1));
+        screen.addView(body, new android.widget.FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+
+        // X: always visible in the top-right corner; saves and closes
+        Btn x = new Btn(this);
+        x.label = "\u2715";
+        x.textSize = 30;
+        x.bold = false;
+        x.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { save.run(); } });
+        android.widget.FrameLayout.LayoutParams xl = new android.widget.FrameLayout.LayoutParams(dp(80), dp(80));
+        xl.gravity = Gravity.TOP | Gravity.RIGHT;
+        screen.addView(x, xl);
+
+        settingsScreen = screen;
+        settingsSave = save;
+        ((ViewGroup) contentRoot).addView(screen, new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        items.get(0).performClick();
+        holder.requestFocus();
+    }
+
+    Runnable settingsSave;
+
+    TextView sideItem(String name) {
+        TextView t = new TextView(this);
+        t.setText(name);
+        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22);
+        t.setTypeface(Fonts.bold);
+        t.setTextColor(C_TEXT);
+        t.setMinHeight(dp(64));
+        t.setGravity(Gravity.CENTER_VERTICAL);
+        t.setPadding(dp(16), 0, dp(12), 0);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.bottomMargin = dp(4);
+        t.setLayoutParams(lp);
+        return t;
+    }
+
+    android.graphics.drawable.GradientDrawable roundedBg(int color) {
+        android.graphics.drawable.GradientDrawable g = new android.graphics.drawable.GradientDrawable();
+        g.setColor(color);
+        g.setCornerRadius(dp(12));
+        return g;
+    }
+
+    /** Big, app-styled controls: applied to every view of a settings page. */
+    void styleSettings(View v) {
+        if (v instanceof CheckBox) {
+            CheckBox c = (CheckBox) v;
+            c.setTextSize(TypedValue.COMPLEX_UNIT_SP, 21);
+            c.setTextColor(C_TEXT);
+            c.setTypeface(Fonts.regular);
+            c.setMinHeight(dp(64));
+            c.setPadding(c.getPaddingLeft() + dp(8), dp(10), 0, dp(10));
+        } else if (v instanceof EditText) {
+            EditText e = (EditText) v;
+            e.setTextSize(TypedValue.COMPLEX_UNIT_SP, 24);
+            e.setTextColor(C_TEXT);
+            e.setHintTextColor(C_DIM);
+            e.setTypeface(Fonts.regular);
+            e.setMinHeight(dp(64));
+        } else if (v instanceof android.widget.Button) {
+            android.widget.Button b = (android.widget.Button) v;
+            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 21);
+            b.setTextColor(C_TEXT);
+            b.setTypeface(Fonts.bold);
+            b.setAllCaps(false);
+            b.setMinHeight(dp(68));
+            b.setPadding(dp(20), dp(12), dp(20), dp(12));
+            b.setBackgroundDrawable(roundedBg(0xFF2A2A2A));
+            ViewGroup.LayoutParams lp0 = b.getLayoutParams();
+            if (lp0 == null || lp0 instanceof LinearLayout.LayoutParams) {
+                LinearLayout.LayoutParams lp = lp0 == null
+                        ? new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+                        : (LinearLayout.LayoutParams) lp0;
+                lp.topMargin = dp(8);
+                lp.bottomMargin = dp(8);
+                if (lp.leftMargin == 0 && lp0 != null && lp.width == ViewGroup.LayoutParams.WRAP_CONTENT) lp.leftMargin = dp(10);
+                b.setLayoutParams(lp);
+            }
+        } else if (v instanceof android.widget.SeekBar) {
+            v.setMinimumHeight(dp(64));
+            v.setPadding(dp(24), dp(20), dp(24), dp(20));
+        } else if (v instanceof TextView) {
+            TextView t = (TextView) v;
+            t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19);
+            t.setTextColor(C_GRAY);
+            t.setTypeface(Fonts.regular);
+            t.setPadding(t.getPaddingLeft(), Math.max(t.getPaddingTop(), dp(14)), t.getPaddingRight(), t.getPaddingBottom());
+        }
+        if (v instanceof ViewGroup && !(v instanceof android.widget.AdapterView)) {
+            ViewGroup g = (ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) styleSettings(g.getChildAt(i));
+        }
+    }
+
     /** Everything useful for a remote diagnosis on one screen (photo-friendly). */
     void showDiagnostics() {
         StringBuilder sb = new StringBuilder();
@@ -2116,6 +2297,7 @@ public class MainActivity extends Activity {
 
     TextView sectionHeader(String title) {
         TextView t = new TextView(this);
+        t.setTag("section"); // starts a new section in the settings sidebar
         t.setText(title);
         t.setTextColor(0xFF33B5E5);
         t.setTypeface(Typeface.DEFAULT_BOLD);

@@ -1,5 +1,15 @@
 # Android kiosk app — changelog
 
+## 1.53 (versionCode 64)
+- Settings are a full-screen page in the app's style instead of a system dialog: black background,
+  a sidebar with the sections (General, Advanced, Room light, Wake-up radio, Auto-off at night,
+  Diagnostics, Backup) and the selected section on the right.
+- Bigger controls: text 19–24 sp, buttons/checkboxes/fields at least 64 dp tall, sliders with larger
+  touch areas, all in the chosen app font.
+- The ✕ in the top-right corner is always visible and saves & closes (the tablet's Back button does
+  the same); "Cancel" and "Leave kiosk" are at the bottom of the sidebar. An invalid IP keeps the
+  page open with a message. Swipe and pinch gestures are off while settings are open.
+
 ## 1.52 (versionCode 63)
 - Diagnostics (ADVANCED → DIAGNOSTICS → "Show diagnostics log"): app/Android/device, speaker state,
   push events, connection health, room light, and the last 300 events, newest first: app start,
